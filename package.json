@@ -14,10 +14,16 @@
     "test:contracts": "npm run test -w @praxislume/contracts",
     "test:api": "npm run test -w @praxislume/api",
     "build": "npm run build -w @praxislume/contracts && npm run build -w @praxislume/api",
-    "docs:check": "powershell -ExecutionPolicy Bypass -File scripts/verify_docs.ps1"
+    "docs:check": "powershell -ExecutionPolicy Bypass -File scripts/verify_docs.ps1",
+    "supabase:status": "supabase status",
+    "supabase:reset": "supabase db reset",
+    "supabase:test:rls": "powershell -ExecutionPolicy Bypass -File scripts/run_supabase_rls_checks.ps1"
   },
   "engines": {
     "node": ">=22.0.0",
     "npm": ">=10.0.0"
+  },
+  "devDependencies": {
+    "supabase": "^2.107.0"
   }
 }

@@ -11,6 +11,8 @@ coverage/
 dist/
 .turbo/
 .supabase/
+supabase/.branches/
+supabase/.temp/
 .worktrees/
 worktrees/
 apps/praxislume_app/.dart_tool/

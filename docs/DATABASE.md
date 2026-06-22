@@ -25,6 +25,10 @@ Tenant-owned records use `clinic_id`. RLS policies check that the authenticated 
 
 Authenticated users may read or mutate only their own clinic records. Public seed tables such as `specialties` are readable by authenticated users. Service-role access is server-only.
 
+RLS policies must be paired with explicit grants for the `authenticated` role. Without table privileges, Postgres rejects access before evaluating the policy. Tenant-owned CRUD tables receive select/insert/update/delete grants guarded by ownership policies; `ai_generation_logs` is select-only for clinic owners because API/server code writes generation logs.
+
+Logo storage uses the `clinic-logos` bucket. Object names must begin with the clinic UUID, for example `<clinic_id>/logo.png`. Storage policies must qualify `storage.objects.name` inside subqueries so the folder check cannot accidentally resolve to `clinics.name`.
+
 ## Migration Rules
 
 - Add forward-only migrations.
@@ -34,4 +38,10 @@ Authenticated users may read or mutate only their own clinic records. Public see
 
 ## Verification
 
-`supabase/tests/rls_cross_clinic.sql` creates two users and clinics, then proves one clinic owner cannot access the other clinic's records through RLS.
+`supabase/tests/rls_cross_clinic.sql` creates two users and clinics, then proves one clinic owner cannot read or update the other clinic's campaign records. It also verifies that the owner can create a logo object under their own clinic path and cannot read or update another clinic's logo object.
+
+Run it locally with:
+
+```powershell
+npm.cmd run supabase:test:rls
+```

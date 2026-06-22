@@ -6,7 +6,8 @@
 - Flutter 3.32 or newer
 - Node.js 22 or newer
 - npm 10 or newer
-- Supabase CLI for database work
+- Docker Desktop for local Supabase
+- Supabase CLI for database work, installed locally by this repo's npm dev dependency
 
 On Windows PowerShell, use `npm.cmd` instead of `npm` if script execution policy blocks `npm.ps1`.
 
@@ -16,8 +17,6 @@ From the repository root:
 
 ```powershell
 npm.cmd install
-npm.cmd --prefix packages/contracts install
-npm.cmd --prefix services/api install
 flutter pub get apps/praxislume_app
 ```
 
@@ -38,14 +37,22 @@ All values in example files are fake. Do not commit real secrets.
 
 ## Supabase
 
-Install the Supabase CLI if `supabase --version` is not found.
+The repo pins the Supabase CLI as a root dev dependency. Prefer the local CLI:
 
 Local commands:
 
 ```powershell
-supabase start
-supabase db reset
+npx.cmd supabase --version
+npx.cmd supabase start
+npx.cmd supabase db reset
+npm.cmd run supabase:test:rls
 ```
+
+`npm.cmd run supabase:test:rls` pipes `supabase/tests/rls_cross_clinic.sql` into `psql` inside the local Supabase database container. A host `psql` install is not required.
+
+The first `npx.cmd supabase start` can take several minutes because Docker pulls large Supabase images. On Windows, Supabase may warn that analytics needs the Docker daemon exposed on `tcp://localhost:2375`; this does not block database/RLS verification. If the first start times out during image extraction or health checks, rerun `npx.cmd supabase start` after Docker settles.
+
+`supabase status` prints local development keys. Treat them as local-only output and never copy service-role or provider secrets into Flutter or committed files.
 
 The Flutter app uses the anon key. The backend API may use the service-role key only on the server. Never put the service-role key in Flutter.
 

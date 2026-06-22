@@ -21,6 +21,11 @@ values
   ('dddddddd-dddd-dddd-dddd-dddddddddddd', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Clinic B Campaign', 'appointments', 7, current_date)
 on conflict (id) do nothing;
 
+insert into storage.objects (bucket_id, name, owner, metadata)
+values
+  ('clinic-logos', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/logo.png', '22222222-2222-2222-2222-222222222222', '{}'::jsonb)
+on conflict (bucket_id, name) do nothing;
+
 set local role authenticated;
 set local request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 
@@ -28,6 +33,9 @@ do $$
 declare
   visible_clinics integer;
   visible_b_campaigns integer;
+  changed_b_campaigns integer;
+  visible_b_logos integer;
+  changed_b_logos integer;
 begin
   select count(*) into visible_clinics from public.clinics;
   if visible_clinics <> 1 then
@@ -40,6 +48,42 @@ begin
 
   if visible_b_campaigns <> 0 then
     raise exception 'Owner A can see Clinic B campaigns';
+  end if;
+
+  update public.content_campaigns
+  set title = 'Compromised Clinic B Campaign'
+  where id = 'dddddddd-dddd-dddd-dddd-dddddddddddd';
+
+  get diagnostics changed_b_campaigns = row_count;
+  if changed_b_campaigns <> 0 then
+    raise exception 'Owner A can update Clinic B campaigns';
+  end if;
+
+  insert into storage.objects (bucket_id, name, owner, metadata)
+  values (
+    'clinic-logos',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/logo.png',
+    auth.uid(),
+    '{}'::jsonb
+  );
+
+  select count(*) into visible_b_logos
+  from storage.objects
+  where bucket_id = 'clinic-logos'
+    and name = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/logo.png';
+
+  if visible_b_logos <> 0 then
+    raise exception 'Owner A can see Clinic B logo objects';
+  end if;
+
+  update storage.objects
+  set metadata = '{"compromised": true}'::jsonb
+  where bucket_id = 'clinic-logos'
+    and name = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/logo.png';
+
+  get diagnostics changed_b_logos = row_count;
+  if changed_b_logos <> 0 then
+    raise exception 'Owner A can update Clinic B logo objects';
   end if;
 end $$;
 

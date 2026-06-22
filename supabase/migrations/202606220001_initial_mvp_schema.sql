@@ -234,6 +234,25 @@ alter table public.ai_generation_logs enable row level security;
 alter table public.usage_credits enable row level security;
 alter table public.content_compliance_reviews enable row level security;
 
+grant usage on schema public to authenticated;
+
+grant select on public.specialties to authenticated;
+
+grant select, insert, update, delete on
+  public.user_profiles,
+  public.clinics,
+  public.doctor_profiles,
+  public.brand_kits,
+  public.clinic_services,
+  public.content_campaigns,
+  public.content_items,
+  public.generated_assets,
+  public.usage_credits,
+  public.content_compliance_reviews
+to authenticated;
+
+grant select on public.ai_generation_logs to authenticated;
+
 create policy "Users can manage own profile"
 on public.user_profiles for all
 to authenticated
@@ -317,6 +336,9 @@ set public = excluded.public,
     file_size_limit = excluded.file_size_limit,
     allowed_mime_types = excluded.allowed_mime_types;
 
+grant select on storage.buckets to authenticated;
+grant select, insert, update, delete on storage.objects to authenticated;
+
 create policy "Clinic owners can read own logo objects"
 on storage.objects for select
 to authenticated
@@ -325,7 +347,7 @@ using (
   and exists (
     select 1
     from public.clinics c
-    where c.id::text = (storage.foldername(name))[1]
+    where c.id::text = (storage.foldername(storage.objects.name))[1]
       and c.owner_user_id = auth.uid()
   )
 );
@@ -338,7 +360,7 @@ with check (
   and exists (
     select 1
     from public.clinics c
-    where c.id::text = (storage.foldername(name))[1]
+    where c.id::text = (storage.foldername(storage.objects.name))[1]
       and c.owner_user_id = auth.uid()
   )
 );
@@ -351,7 +373,7 @@ using (
   and exists (
     select 1
     from public.clinics c
-    where c.id::text = (storage.foldername(name))[1]
+    where c.id::text = (storage.foldername(storage.objects.name))[1]
       and c.owner_user_id = auth.uid()
   )
 )
@@ -360,7 +382,7 @@ with check (
   and exists (
     select 1
     from public.clinics c
-    where c.id::text = (storage.foldername(name))[1]
+    where c.id::text = (storage.foldername(storage.objects.name))[1]
       and c.owner_user_id = auth.uid()
   )
 );
@@ -373,7 +395,7 @@ using (
   and exists (
     select 1
     from public.clinics c
-    where c.id::text = (storage.foldername(name))[1]
+    where c.id::text = (storage.foldername(storage.objects.name))[1]
       and c.owner_user_id = auth.uid()
   )
 );
