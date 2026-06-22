@@ -1,0 +1,23 @@
+{
+  "name": "praxislume",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PraxisLume Doctor Growth OS monorepo",
+  "workspaces": [
+    "packages/contracts",
+    "services/api"
+  ],
+  "scripts": {
+    "lint": "npm run lint -w @praxislume/contracts && npm run lint -w @praxislume/api",
+    "typecheck": "npm run typecheck -w @praxislume/contracts && npm run typecheck -w @praxislume/api",
+    "test": "npm run test -w @praxislume/contracts && npm run test -w @praxislume/api",
+    "test:contracts": "npm run test -w @praxislume/contracts",
+    "test:api": "npm run test -w @praxislume/api",
+    "build": "npm run build -w @praxislume/contracts && npm run build -w @praxislume/api",
+    "docs:check": "powershell -ExecutionPolicy Bypass -File scripts/verify_docs.ps1"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  }
+}
