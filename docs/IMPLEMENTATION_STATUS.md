@@ -8,10 +8,10 @@ PraxisLume is an initialized Git repository with a runnable foundation for v0.1 
 
 - Git repository: initialized in `C:\codex_experiments\PraxisLume`.
 - Git remote: `origin` points to `https://github.com/gchamania/praxislume.git`.
-- Current implementation branch: `codex/flutter-supabase-persistence`, based on `origin/surgmuster`.
+- Current implementation branch: `codex/api-supabase-ai-logs`, based on the latest local `surgmuster` merge point.
 - Docs: canonical docs are populated and duplicate `docs/PraxisLume_*.md` files have been removed.
 - Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, widget tests, and controller tests.
-- Backend API: `services/api` has a Fastify TypeScript API with health, readiness, protected generation routes, compliance review, config validation, request envelopes, fake provider, and tests.
+- Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake provider, Supabase-backed generation/quota/compliance stores, and tests.
 - Contracts: `packages/contracts` has shared Zod schemas and tests.
 - Supabase: `supabase` has local config, initial migration, seed data, logo storage policies, and an executable RLS verification script.
 - Supabase CLI: pinned as a root npm dev dependency; use `npx.cmd supabase ...` or the root npm scripts on Windows.
@@ -63,6 +63,7 @@ API and contracts:
 - `packages/contracts/tests/contracts.test.ts`
 - `services/api/src/app.ts`
 - `services/api/src/auth.ts`
+- `services/api/src/complianceStore.ts`
 - `services/api/src/compliance.ts`
 - `services/api/src/config.ts`
 - `services/api/src/envelope.ts`
@@ -90,7 +91,7 @@ Known missing or deferred implementation areas:
 
 - Flutter native mobile runner folders such as `android/` and `ios/` have not been generated yet; current runner support is web.
 - Flutter still uses an in-memory repository for demo mode and tests when no Supabase session exists.
-- API generation logging is implemented as an in-memory service for the API foundation; persistence to `ai_generation_logs` is the next backend/database integration step.
+- API Supabase persistence now has adapter and unit-test coverage, but still needs a real local smoke test with Supabase Auth JWTs and the service-role key.
 - Real LLM providers are deferred behind the existing fake-provider adapter.
 - Production deployment, monitoring, and staging secrets are not configured.
 
@@ -126,12 +127,16 @@ Still enforced:
 - Added Flutter email/password sign-in and account creation controls that call Supabase Auth directly when the app is built with Supabase dart defines.
 - Added a `PraxisRepository` seam, in-memory repository, session-aware Supabase repository, and controller tests.
 - Wired Flutter onboarding, brand kit edits, campaign package generation, and content item edits through repository persistence.
+- Added API generation store adapters for daily usage reservation, quota exhaustion, patient-data rejection logging, provider success/failure logging, and Supabase `ai_generation_logs` persistence.
+- Added API compliance review store adapters that persist review metadata to `content_compliance_reviews` without raw reviewed content.
+- Added Supabase Auth JWT verification for non-test protected API routes, with injectable test verification.
+- Added API tests for all generation endpoint log categories, quota exhaustion, patient-data blocking before quota reservation, verified user-id logging, invalid-token rejection, and compliance metadata persistence.
 - Added CI workflow for Node and Flutter checks.
 
 ## In Progress
 
-- Flutter Supabase persistence needs a real local smoke test with a Supabase Auth user after this branch is merged.
-- API generation logs need to be written to Supabase instead of the current in-memory foundation.
+- Flutter Supabase persistence still needs a real local smoke test with a Supabase Auth user.
+- API Supabase generation/quota/compliance persistence needs a real local smoke test against Supabase using a valid Supabase Auth JWT.
 - Brand logo upload needs live Supabase Storage wiring from Flutter.
 
 ## Blocked
@@ -141,15 +146,16 @@ Still enforced:
 
 ## Next Recommended Codex Agents
 
-1. PL-11 hardening - Flutter local Supabase smoke
+1. PL-13 hardening - API local Supabase smoke
+   - Start local Supabase and API with service-role configuration.
+   - Create/sign in a local Supabase Auth user.
+   - Call protected generation endpoints with the real JWT and verify Supabase Auth accepts it.
+   - Verify `ai_generation_logs`, `usage_credits`, and `content_compliance_reviews` rows are written as expected.
+
+2. PL-11 hardening - Flutter local Supabase smoke
    - Create a local Supabase Auth user.
    - Sign in through Flutter with dart defines.
    - Verify onboarding, brand kit save, campaign generation, and content item edit persist across restart.
-
-2. PL-12/PL-13 integration - persistent AI logs and quotas
-   - Connect API generation routes to Supabase.
-   - Persist `ai_generation_logs`, `usage_credits`, and compliance reviews.
-   - Keep the fake provider as the default local provider.
 
 3. PL-20 integration - live brand kit storage
    - Wire brand kit CRUD to Supabase.
@@ -161,15 +167,21 @@ Still enforced:
 
 ## Verification Results
 
-Current branch fresh verification:
+Current Agent 3 branch fresh verification:
+
+- `npm.cmd run test:api` exited 0 with 11 API tests passing.
+- `npm.cmd run typecheck` exited 0.
+- `npm.cmd run lint` exited 0.
+- `npm.cmd run docs:check` exited 0.
+- `npm.cmd test` exited 0 with 5 contract tests and 11 API tests passing.
+- `npm.cmd run build` exited 0.
+
+Previous Flutter and Supabase verification from the Agent 2 persistence pass:
 
 - `dart format --set-exit-if-changed .` in `apps/praxislume_app` exited 0 after formatting changes were applied.
 - `flutter analyze` in `apps/praxislume_app` exited 0 with no issues.
 - `flutter test` in `apps/praxislume_app` exited 0 with 9 tests passing.
 - `flutter build web` in `apps/praxislume_app` exited 0 and built `build\web`.
-- `npm.cmd run docs:check` exited 0.
-- `npm.cmd run lint` exited 0.
-- `npm.cmd test` exited 0.
 - `npm.cmd run supabase:test:rls` exited 0 and verified campaign plus logo storage cross-clinic isolation.
 - `npx.cmd supabase --version` returned `2.107.0`.
 - `npx.cmd supabase start` started the local stack after Docker images were cached.
