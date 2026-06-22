@@ -8,7 +8,7 @@ PraxisLume is an initialized Git repository with a runnable foundation for v0.1 
 
 - Git repository: initialized in `C:\codex_experiments\PraxisLume`.
 - Git remote: `origin` points to `https://github.com/gchamania/praxislume.git`.
-- Current implementation branch: `codex/api-supabase-ai-logs`, based on the latest local `surgmuster` merge point.
+- Current implementation branch: `surgmuster`.
 - Docs: canonical docs are populated and duplicate `docs/PraxisLume_*.md` files have been removed.
 - Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, widget tests, and controller tests.
 - Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake provider, Supabase-backed generation/quota/compliance stores, and tests.
@@ -91,7 +91,7 @@ Known missing or deferred implementation areas:
 
 - Flutter native mobile runner folders such as `android/` and `ios/` have not been generated yet; current runner support is web.
 - Flutter still uses an in-memory repository for demo mode and tests when no Supabase session exists.
-- API Supabase persistence now has adapter and unit-test coverage, but still needs a real local smoke test with Supabase Auth JWTs and the service-role key.
+- API Supabase persistence has adapter coverage and has passed a real local smoke test with Supabase Auth JWTs and the service-role key.
 - Real LLM providers are deferred behind the existing fake-provider adapter.
 - Production deployment, monitoring, and staging secrets are not configured.
 
@@ -131,12 +131,17 @@ Still enforced:
 - Added API compliance review store adapters that persist review metadata to `content_compliance_reviews` without raw reviewed content.
 - Added Supabase Auth JWT verification for non-test protected API routes, with injectable test verification.
 - Added API tests for all generation endpoint log categories, quota exhaustion, patient-data blocking before quota reservation, verified user-id logging, invalid-token rejection, and compliance metadata persistence.
+- Merged `codex/api-supabase-ai-logs` into `surgmuster`.
+- Added explicit `service_role` grants for server-managed Supabase tables used by API persistence.
+- Expanded the Supabase RLS check to verify service-role writes to `ai_generation_logs`, `usage_credits`, and `content_compliance_reviews`.
+- Fixed the RLS PowerShell wrapper so SQL failures return a failing exit code.
+- Updated the shared patient-data guard to ignore operational metadata such as `clinicId` and `idempotencyKey` while still rejecting patient-identifiable request content.
+- Ran a PL-13 local API smoke with a real Supabase Auth user/JWT, RLS clinic insert, API generation, blocked patient-data generation, compliance review, and Supabase row verification.
 - Added CI workflow for Node and Flutter checks.
 
 ## In Progress
 
 - Flutter Supabase persistence still needs a real local smoke test with a Supabase Auth user.
-- API Supabase generation/quota/compliance persistence needs a real local smoke test against Supabase using a valid Supabase Auth JWT.
 - Brand logo upload needs live Supabase Storage wiring from Flutter.
 
 ## Blocked
@@ -146,35 +151,32 @@ Still enforced:
 
 ## Next Recommended Codex Agents
 
-1. PL-13 hardening - API local Supabase smoke
-   - Start local Supabase and API with service-role configuration.
-   - Create/sign in a local Supabase Auth user.
-   - Call protected generation endpoints with the real JWT and verify Supabase Auth accepts it.
-   - Verify `ai_generation_logs`, `usage_credits`, and `content_compliance_reviews` rows are written as expected.
-
-2. PL-11 hardening - Flutter local Supabase smoke
+1. PL-11 hardening - Flutter local Supabase smoke
    - Create a local Supabase Auth user.
    - Sign in through Flutter with dart defines.
    - Verify onboarding, brand kit save, campaign generation, and content item edit persist across restart.
 
-3. PL-20 integration - live brand kit storage
+2. PL-20 integration - live brand kit storage
    - Wire brand kit CRUD to Supabase.
    - Add logo upload to the `clinic-logos` bucket using clinic-owned paths.
 
-4. PL-100 - QA hardening
+3. PL-100 - QA hardening
    - Add end-to-end smoke testing after Supabase-backed repositories are available.
    - Verify no service-role keys or provider secrets are exposed to Flutter.
 
 ## Verification Results
 
-Current Agent 3 branch fresh verification:
+Current `surgmuster` verification after Agent 3 merge and PL-13 smoke hardening:
 
+- `npm.cmd run test:contracts` exited 0 with 6 contract tests passing.
 - `npm.cmd run test:api` exited 0 with 11 API tests passing.
-- `npm.cmd run typecheck` exited 0.
 - `npm.cmd run lint` exited 0.
+- `npm.cmd run typecheck` exited 0.
+- `npm.cmd test` exited 0 with 6 contract tests and 11 API tests passing.
 - `npm.cmd run docs:check` exited 0.
-- `npm.cmd test` exited 0 with 5 contract tests and 11 API tests passing.
 - `npm.cmd run build` exited 0.
+- `npm.cmd run supabase:test:rls` exited 0 after verifying service-role writes plus cross-clinic campaign/logo isolation.
+- PL-13 local API smoke exited 0 after creating a real local Supabase Auth user, inserting a clinic through RLS with the user JWT, calling protected API generation/compliance endpoints, and verifying `ai_generation_logs`, `usage_credits`, and `content_compliance_reviews` rows.
 
 Previous Flutter and Supabase verification from the Agent 2 persistence pass:
 

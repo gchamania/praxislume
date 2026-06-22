@@ -43,6 +43,23 @@ describe('shared contracts', () => {
     expect(patientDataGuard('General monsoon skin care awareness').ok).toBe(true);
   });
 
+  it('does not treat operational request metadata as patient data', () => {
+    expect(
+      patientDataGuard({
+        clinicId: '99999999-9999-4999-8999-999999999999',
+        idempotencyKey: 'pl13-1782135771041',
+        durationDays: 7,
+        specialty: 'ENT',
+        services: ['Sinus consultation'],
+        locality: 'Pune',
+        goal: 'increase appointment enquiries',
+        tone: 'simple',
+        ctaPreference: 'Book an ENT consultation',
+        disclaimerPreference: 'For general education only.'
+      }).ok
+    ).toBe(true);
+  });
+
   it('validates campaign-plan responses and API envelopes', () => {
     const response = campaignPlanResponseSchema.parse({
       items: [

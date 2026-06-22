@@ -26,6 +26,63 @@ values
   ('clinic-logos', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/logo.png', '22222222-2222-2222-2222-222222222222', '{}'::jsonb)
 on conflict (bucket_id, name) do nothing;
 
+set local role service_role;
+
+insert into public.ai_generation_logs (
+  clinic_id,
+  user_id,
+  generation_type,
+  provider,
+  model,
+  request_correlation_id,
+  status
+)
+values (
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  '11111111-1111-1111-1111-111111111111',
+  'rls_service_role_check',
+  'fake',
+  'fake-draft-v1',
+  'rls-service-role-check',
+  'succeeded'
+);
+
+insert into public.usage_credits (
+  clinic_id,
+  usage_type,
+  period_start,
+  period_end,
+  used_count,
+  limit_count
+)
+values (
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  'rls_service_role_check',
+  current_date,
+  current_date,
+  1,
+  50
+);
+
+insert into public.content_compliance_reviews (
+  clinic_id,
+  reviewed_content_version_hash,
+  status,
+  issue_codes,
+  notes,
+  reviewer_type
+)
+values (
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  'sha256-rls-service-role-check',
+  'passed',
+  '{}'::text[],
+  '{}'::text[],
+  'rules'
+);
+
+reset role;
+
 set local role authenticated;
 set local request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
 

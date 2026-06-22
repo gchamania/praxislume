@@ -234,7 +234,7 @@ alter table public.ai_generation_logs enable row level security;
 alter table public.usage_credits enable row level security;
 alter table public.content_compliance_reviews enable row level security;
 
-grant usage on schema public to authenticated;
+grant usage on schema public to authenticated, service_role;
 
 grant select on public.specialties to authenticated;
 
@@ -252,6 +252,12 @@ grant select, insert, update, delete on
 to authenticated;
 
 grant select on public.ai_generation_logs to authenticated;
+
+grant select, insert, update, delete on
+  public.ai_generation_logs,
+  public.usage_credits,
+  public.content_compliance_reviews
+to service_role;
 
 create policy "Users can manage own profile"
 on public.user_profiles for all

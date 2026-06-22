@@ -150,13 +150,43 @@ const patientDataPatterns: Array<{ code: string; pattern: RegExp }> = [
   { code: 'case_history', pattern: /\b(?:case history|patient history|my patient|patient named)\b/i }
 ];
 
+const patientGuardMetadataKeys = new Set([
+  'brandKitId',
+  'campaignId',
+  'clinicId',
+  'contentItemId',
+  'contentVersionHash',
+  'idempotencyKey',
+  'requestId'
+]);
+
 export function patientDataGuard(input: unknown): { ok: true } | { ok: false; issueCodes: string[] } {
-  const text = typeof input === 'string' ? input : JSON.stringify(input);
+  const text = collectPatientDataText(input).join('\n');
   const issueCodes = patientDataPatterns
     .filter(({ pattern }) => pattern.test(text))
     .map(({ code }) => code);
 
   return issueCodes.length === 0 ? { ok: true } : { ok: false, issueCodes };
+}
+
+function collectPatientDataText(input: unknown, key?: string): string[] {
+  if (key && patientGuardMetadataKeys.has(key)) {
+    return [];
+  }
+
+  if (typeof input === 'string') {
+    return [input];
+  }
+
+  if (Array.isArray(input)) {
+    return input.flatMap((item) => collectPatientDataText(item));
+  }
+
+  if (input && typeof input === 'object') {
+    return Object.entries(input).flatMap(([entryKey, value]) => collectPatientDataText(value, entryKey));
+  }
+
+  return [];
 }
 
 export type CampaignPlanRequest = z.infer<typeof campaignPlanRequestSchema>;

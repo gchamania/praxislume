@@ -27,6 +27,8 @@ Authenticated users may read or mutate only their own clinic records. Public see
 
 RLS policies must be paired with explicit grants for the `authenticated` role. Without table privileges, Postgres rejects access before evaluating the policy. Tenant-owned CRUD tables receive select/insert/update/delete grants guarded by ownership policies; `ai_generation_logs` is select-only for clinic owners because API/server code writes generation logs.
 
+Server-managed tables also need explicit `service_role` grants for backend API persistence. The API uses the service role only on the server to write `ai_generation_logs`, reserve/update `usage_credits`, and write `content_compliance_reviews`; Flutter must never receive the service-role key.
+
 Logo storage uses the `clinic-logos` bucket. Object names must begin with the clinic UUID, for example `<clinic_id>/logo.png`. Storage policies must qualify `storage.objects.name` inside subqueries so the folder check cannot accidentally resolve to `clinics.name`.
 
 ## Migration Rules
@@ -38,7 +40,7 @@ Logo storage uses the `clinic-logos` bucket. Object names must begin with the cl
 
 ## Verification
 
-`supabase/tests/rls_cross_clinic.sql` creates two users and clinics, then proves one clinic owner cannot read or update the other clinic's campaign records. It also verifies that the owner can create a logo object under their own clinic path and cannot read or update another clinic's logo object.
+`supabase/tests/rls_cross_clinic.sql` creates two users and clinics, verifies the backend `service_role` can write server-managed log/quota/compliance tables, then proves one clinic owner cannot read or update the other clinic's campaign records. It also verifies that the owner can create a logo object under their own clinic path and cannot read or update another clinic's logo object.
 
 Run it locally with:
 
