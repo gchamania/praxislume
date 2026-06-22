@@ -880,7 +880,7 @@ class PraxisController extends StateNotifier<PraxisState> {
     };
     final campaign = ContentCampaign(
       id: _newUuid(),
-      title: '30-day Dermatology Growth Campaign',
+      title: '30-day ${doctor.specialty} Growth Campaign',
       goal: 'increase appointment enquiries',
       durationDays: 30,
       startDate: DateTime.now(),
@@ -1178,6 +1178,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _formKey = GlobalKey<FormState>();
   final _doctorName = TextEditingController();
   final _qualifications = TextEditingController();
+  final _specialty = TextEditingController();
   final _clinicName = TextEditingController();
   final _locality = TextEditingController();
   final _city = TextEditingController();
@@ -1188,6 +1189,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   void dispose() {
     _doctorName.dispose();
     _qualifications.dispose();
+    _specialty.dispose();
     _clinicName.dispose();
     _locality.dispose();
     _city.dispose();
@@ -1233,6 +1235,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   const Key('qualificationsField'),
                 ),
                 _field(
+                  _specialty,
+                  'Specialty',
+                  const Key('specialtyField'),
+                ),
+                _field(
                   _clinicName,
                   'Clinic name',
                   const Key('clinicNameField'),
@@ -1263,6 +1270,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         .completeOnboarding(
           doctorName: _doctorName.text.trim(),
           qualifications: _qualifications.text.trim(),
+          specialty: _specialty.text.trim(),
           clinicName: _clinicName.text.trim(),
           locality: _locality.text.trim(),
           city: _city.text.trim(),

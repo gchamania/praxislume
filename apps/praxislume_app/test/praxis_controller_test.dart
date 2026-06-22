@@ -92,7 +92,7 @@ void main() {
           id: 'doctor-1',
           name: 'Dr Asha Mehta',
           qualifications: 'MBBS, MD',
-          specialty: 'Dermatology',
+          specialty: 'ENT',
         ),
       ),
     );
@@ -102,6 +102,7 @@ void main() {
     await controller.generateThirtyDayCampaign();
 
     expect(repository.campaignSaveCalls, 1);
+    expect(controller.state.campaign?.title, '30-day ENT Growth Campaign');
     expect(controller.state.campaign?.durationDays, 30);
     expect(controller.state.items, hasLength(30));
   });

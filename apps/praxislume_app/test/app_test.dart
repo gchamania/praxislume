@@ -52,6 +52,10 @@ void main() {
       'MBBS, MD',
     );
     await tester.enterText(
+      find.byKey(const Key('specialtyField')),
+      'Dermatology',
+    );
+    await tester.enterText(
       find.byKey(const Key('clinicNameField')),
       'Asha Skin Clinic',
     );
@@ -74,14 +78,19 @@ void main() {
 
   testWidgets('generates, edits, and copies a campaign item', (tester) async {
     await tester.pumpWidget(const PraxisLumeApp());
-    await _completeDemoOnboarding(tester);
+    await _completeDemoOnboarding(
+      tester,
+      specialty: 'ENT',
+      clinicName: 'Praxis ENT Clinic',
+      services: 'Sinus consultation, Ear infection care',
+    );
 
     await tester.tap(find.text('Calendar'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Generate 30-day campaign'));
     await tester.pumpAndSettle();
 
-    expect(find.text('30-day Dermatology Growth Campaign'), findsOneWidget);
+    expect(find.text('30-day ENT Growth Campaign'), findsOneWidget);
     expect(find.textContaining('Content ideas: 30'), findsOneWidget);
 
     await tester.tap(find.textContaining('Day 1'));
@@ -122,7 +131,12 @@ void main() {
   });
 }
 
-Future<void> _completeDemoOnboarding(WidgetTester tester) async {
+Future<void> _completeDemoOnboarding(
+  WidgetTester tester, {
+  String specialty = 'Dermatology',
+  String clinicName = 'Asha Skin Clinic',
+  String services = 'Acne care, Skin allergy care',
+}) async {
   await tester.tap(find.text('Use demo account'));
   await tester.pumpAndSettle();
   await tester.enterText(
@@ -133,15 +147,16 @@ Future<void> _completeDemoOnboarding(WidgetTester tester) async {
     find.byKey(const Key('qualificationsField')),
     'MBBS, MD',
   );
+  await tester.enterText(find.byKey(const Key('specialtyField')), specialty);
   await tester.enterText(
     find.byKey(const Key('clinicNameField')),
-    'Asha Skin Clinic',
+    clinicName,
   );
   await tester.enterText(find.byKey(const Key('localityField')), 'Aundh');
   await tester.enterText(find.byKey(const Key('cityField')), 'Pune');
   await tester.enterText(
     find.byKey(const Key('servicesField')),
-    'Acne care, Skin allergy care',
+    services,
   );
   await tester.enterText(
     find.byKey(const Key('phoneField')),
