@@ -56,6 +56,19 @@ The first `npx.cmd supabase start` can take several minutes because Docker pulls
 
 The Flutter app uses the anon key. The backend API may use the service-role key only on the server. Never put the service-role key in Flutter.
 
+## Flutter With Supabase
+
+Start local Supabase, then pass the local project URL and anon key to Flutter with dart defines:
+
+```powershell
+Set-Location apps/praxislume_app
+flutter run -d chrome --dart-define=SUPABASE_URL=http://127.0.0.1:54321 --dart-define=SUPABASE_ANON_KEY=<local-anon-key>
+```
+
+Get the local anon key from `npx.cmd supabase status`. Use only the anon key in Flutter. The service-role key remains server-only.
+
+When no Supabase session exists, the app's demo account path uses the in-memory repository. After signing in with Supabase email/password, onboarding, brand kit edits, campaign generation, and content item edits use Supabase tables under RLS.
+
 ## Verification
 
 Run:

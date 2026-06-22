@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -40,27 +42,35 @@ class SupabaseSettings {
 
 class ClinicProfile {
   const ClinicProfile({
+    this.id = '',
     required this.name,
     required this.locality,
     required this.city,
     required this.services,
     required this.phone,
+    this.whatsapp,
+    this.appointmentUrl,
   });
 
+  final String id;
   final String name;
   final String locality;
   final String city;
   final List<String> services;
   final String phone;
+  final String? whatsapp;
+  final String? appointmentUrl;
 }
 
 class DoctorProfile {
   const DoctorProfile({
+    this.id = '',
     required this.name,
     required this.qualifications,
     required this.specialty,
   });
 
+  final String id;
   final String name;
   final String qualifications;
   final String specialty;
@@ -218,18 +228,609 @@ class PraxisState {
   }
 }
 
-class PraxisController extends StateNotifier<PraxisState> {
-  PraxisController() : super(PraxisState.initial());
+abstract class PraxisRepository {
+  Future<PraxisState> load();
 
-  void signInDemo() {
-    state = state.copyWith(isAuthenticated: true);
+  Future<PraxisState> saveOnboarding({
+    required PraxisState currentState,
+    required String doctorName,
+    required String qualifications,
+    required String specialty,
+    required String clinicName,
+    required String locality,
+    required String city,
+    required List<String> services,
+    required String phone,
+  });
+
+  Future<PraxisState> saveBrandKit({
+    required PraxisState currentState,
+    required BrandKit brandKit,
+  });
+
+  Future<PraxisState> saveCampaignPackage({
+    required PraxisState currentState,
+    required ContentCampaign campaign,
+    required List<ContentItem> items,
+  });
+
+  Future<PraxisState> updateContentItem({
+    required PraxisState currentState,
+    required String id,
+    required String caption,
+  });
+}
+
+class InMemoryPraxisRepository implements PraxisRepository {
+  InMemoryPraxisRepository({PraxisState? initialState})
+    : _state = initialState ?? PraxisState.initial();
+
+  PraxisState _state;
+
+  @override
+  Future<PraxisState> load() async => _state;
+
+  @override
+  Future<PraxisState> saveOnboarding({
+    required PraxisState currentState,
+    required String doctorName,
+    required String qualifications,
+    required String specialty,
+    required String clinicName,
+    required String locality,
+    required String city,
+    required List<String> services,
+    required String phone,
+  }) async {
+    _state = currentState.copyWith(
+      isAuthenticated: true,
+      clinic: ClinicProfile(
+        id: currentState.clinic?.id.isNotEmpty == true
+            ? currentState.clinic!.id
+            : _newUuid(),
+        name: clinicName,
+        locality: locality,
+        city: city,
+        services: services,
+        phone: phone,
+      ),
+      doctor: DoctorProfile(
+        id: currentState.doctor?.id.isNotEmpty == true
+            ? currentState.doctor!.id
+            : _newUuid(),
+        name: doctorName,
+        qualifications: qualifications,
+        specialty: specialty,
+      ),
+    );
+    return _state;
+  }
+
+  @override
+  Future<PraxisState> saveBrandKit({
+    required PraxisState currentState,
+    required BrandKit brandKit,
+  }) async {
+    _state = currentState.copyWith(brandKit: brandKit);
+    return _state;
+  }
+
+  @override
+  Future<PraxisState> saveCampaignPackage({
+    required PraxisState currentState,
+    required ContentCampaign campaign,
+    required List<ContentItem> items,
+  }) async {
+    _state = currentState.copyWith(campaign: campaign, items: items);
+    return _state;
+  }
+
+  @override
+  Future<PraxisState> updateContentItem({
+    required PraxisState currentState,
+    required String id,
+    required String caption,
+  }) async {
+    _state = currentState.copyWith(
+      items: [
+        for (final item in currentState.items)
+          if (item.id == id)
+            item.copyWith(caption: caption, status: 'drafted')
+          else
+            item,
+      ],
+    );
+    return _state;
+  }
+}
+
+class SupabasePraxisRepository implements PraxisRepository {
+  SupabasePraxisRepository(this._client);
+
+  final SupabaseClient _client;
+
+  @override
+  Future<PraxisState> load() async {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      return PraxisState.initial();
+    }
+
+    final clinics = _asRows(
+      await _client
+          .from('clinics')
+          .select()
+          .eq('owner_user_id', user.id)
+          .order('created_at')
+          .limit(1),
+    );
+    if (clinics.isEmpty) {
+      return PraxisState.initial().copyWith(isAuthenticated: true);
+    }
+
+    final clinicRow = clinics.first;
+    final clinicId = _readText(clinicRow, 'id');
+    final services =
+        _asRows(
+              await _client
+                  .from('clinic_services')
+                  .select()
+                  .eq('clinic_id', clinicId)
+                  .order('name'),
+            )
+            .map((row) => _readText(row, 'name'))
+            .where((name) => name.isNotEmpty)
+            .toList();
+    final doctorRow = await _maybeSingle(
+      _client.from('doctor_profiles').select().eq('clinic_id', clinicId),
+    );
+    final brandRow = await _maybeSingle(
+      _client.from('brand_kits').select().eq('clinic_id', clinicId),
+    );
+    final campaignRows = _asRows(
+      await _client
+          .from('content_campaigns')
+          .select()
+          .eq('clinic_id', clinicId)
+          .order('created_at', ascending: false)
+          .limit(1),
+    );
+    final campaign = campaignRows.isEmpty
+        ? null
+        : _campaignFromRow(campaignRows.first);
+    final items = campaign == null
+        ? <ContentItem>[]
+        : _asRows(
+            await _client
+                .from('content_items')
+                .select()
+                .eq('campaign_id', campaign.id)
+                .order('day_offset'),
+          ).map(_contentItemFromRow).toList();
+
+    return PraxisState(
+      isAuthenticated: true,
+      clinic: ClinicProfile(
+        id: clinicId,
+        name: _readText(clinicRow, 'name'),
+        locality: _readText(clinicRow, 'locality'),
+        city: _readText(clinicRow, 'city'),
+        services: services,
+        phone: _readText(clinicRow, 'phone'),
+        whatsapp: _nullableText(clinicRow, 'whatsapp'),
+        appointmentUrl: _nullableText(clinicRow, 'appointment_url'),
+      ),
+      doctor: doctorRow == null
+          ? null
+          : DoctorProfile(
+              id: _readText(doctorRow, 'id'),
+              name: _readText(doctorRow, 'doctor_name'),
+              qualifications: _readText(doctorRow, 'qualifications'),
+              specialty: 'Dermatology',
+            ),
+      brandKit: brandRow == null
+          ? PraxisState.initial().brandKit
+          : _brandKitFromRow(brandRow),
+      campaign: campaign,
+      items: items,
+    );
+  }
+
+  @override
+  Future<PraxisState> saveOnboarding({
+    required PraxisState currentState,
+    required String doctorName,
+    required String qualifications,
+    required String specialty,
+    required String clinicName,
+    required String locality,
+    required String city,
+    required List<String> services,
+    required String phone,
+  }) async {
+    final userId = _requiredUserId();
+    final clinicPayload = {
+      if (currentState.clinic?.id.isNotEmpty == true)
+        'id': currentState.clinic!.id,
+      'owner_user_id': userId,
+      'name': clinicName,
+      'locality': locality,
+      'city': city,
+      'phone': phone,
+      'whatsapp': phone,
+    };
+    final clinicRow = Map<String, dynamic>.from(
+      await _client.from('clinics').upsert(clinicPayload).select().single()
+          as Map,
+    );
+    final clinicId = _readText(clinicRow, 'id');
+
+    final doctorRow = Map<String, dynamic>.from(
+      await _client
+              .from('doctor_profiles')
+              .upsert({
+                if (currentState.doctor?.id.isNotEmpty == true)
+                  'id': currentState.doctor!.id,
+                'clinic_id': clinicId,
+                'user_id': userId,
+                'doctor_name': doctorName,
+                'qualifications': qualifications,
+              }, onConflict: 'clinic_id,user_id')
+              .select()
+              .single()
+          as Map,
+    );
+
+    await _client.from('clinic_services').delete().eq('clinic_id', clinicId);
+    if (services.isNotEmpty) {
+      await _client.from('clinic_services').insert([
+        for (final service in services)
+          {'clinic_id': clinicId, 'name': service},
+      ]);
+    }
+
+    final nextState = currentState.copyWith(
+      isAuthenticated: true,
+      clinic: ClinicProfile(
+        id: clinicId,
+        name: clinicName,
+        locality: locality,
+        city: city,
+        services: services,
+        phone: phone,
+        whatsapp: phone,
+      ),
+      doctor: DoctorProfile(
+        id: _readText(doctorRow, 'id'),
+        name: doctorName,
+        qualifications: qualifications,
+        specialty: specialty,
+      ),
+    );
+    return saveBrandKit(currentState: nextState, brandKit: nextState.brandKit);
+  }
+
+  @override
+  Future<PraxisState> saveBrandKit({
+    required PraxisState currentState,
+    required BrandKit brandKit,
+  }) async {
+    final clinic = currentState.clinic;
+    if (clinic == null || clinic.id.isEmpty) {
+      return currentState.copyWith(brandKit: brandKit);
+    }
+    final doctor = currentState.doctor;
+    final row = await _client
+        .from('brand_kits')
+        .upsert({
+          'clinic_id': clinic.id,
+          'clinic_display_name': clinic.name,
+          'doctor_display_name': doctor?.name ?? clinic.name,
+          'qualifications': doctor?.qualifications ?? '',
+          'locations': [
+            {'locality': clinic.locality, 'city': clinic.city},
+          ],
+          'phone': clinic.phone,
+          'whatsapp': clinic.whatsapp ?? clinic.phone,
+          'appointment_url': clinic.appointmentUrl,
+          'primary_color': brandKit.primaryColor,
+          'secondary_color': brandKit.secondaryColor,
+          'accent_color': brandKit.accentColor,
+          'typography_style': 'clean',
+          'tone': brandKit.tone,
+          'default_cta': brandKit.defaultCta,
+          'disclaimer_text': brandKit.disclaimer,
+          'logo_path': brandKit.logoPath,
+        }, onConflict: 'clinic_id')
+        .select()
+        .single();
+    return currentState.copyWith(
+      brandKit: _brandKitFromRow(Map<String, dynamic>.from(row as Map)),
+    );
+  }
+
+  @override
+  Future<PraxisState> saveCampaignPackage({
+    required PraxisState currentState,
+    required ContentCampaign campaign,
+    required List<ContentItem> items,
+  }) async {
+    final clinic = currentState.clinic;
+    if (clinic == null || clinic.id.isEmpty) {
+      return currentState.copyWith(campaign: campaign, items: items);
+    }
+
+    final campaignRow = await _client
+        .from('content_campaigns')
+        .upsert({
+          'id': campaign.id,
+          'clinic_id': clinic.id,
+          'title': campaign.title,
+          'goal': campaign.goal,
+          'duration_days': campaign.durationDays,
+          'start_date': _dateOnly(campaign.startDate),
+          'status': 'draft',
+        })
+        .select()
+        .single();
+    final savedCampaign = _campaignFromRow(
+      Map<String, dynamic>.from(campaignRow as Map),
+    );
+
+    await _client
+        .from('content_items')
+        .delete()
+        .eq('campaign_id', savedCampaign.id);
+    if (items.isNotEmpty) {
+      await _client.from('content_items').insert([
+        for (final item in items)
+          {
+            'id': item.id,
+            'clinic_id': clinic.id,
+            'campaign_id': savedCampaign.id,
+            'scheduled_date': _dateOnly(
+              savedCampaign.startDate.add(Duration(days: item.dayOffset)),
+            ),
+            'day_offset': item.dayOffset,
+            'title': item.title,
+            'category': item.category,
+            'status': item.status,
+            'caption': item.caption,
+            'short_cta': item.shortCta,
+            'reel_script': item.reelScript,
+            'disclaimer_text': currentState.brandKit.disclaimer,
+          },
+      ]);
+    }
+
+    return currentState.copyWith(campaign: savedCampaign, items: items);
+  }
+
+  @override
+  Future<PraxisState> updateContentItem({
+    required PraxisState currentState,
+    required String id,
+    required String caption,
+  }) async {
+    await _client
+        .from('content_items')
+        .update({
+          'caption': caption,
+          'status': 'drafted',
+          'user_edited_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', id);
+    return currentState.copyWith(
+      items: [
+        for (final item in currentState.items)
+          if (item.id == id)
+            item.copyWith(caption: caption, status: 'drafted')
+          else
+            item,
+      ],
+    );
+  }
+
+  String _requiredUserId() {
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      throw StateError('Supabase user session is required for persistence.');
+    }
+    return user.id;
+  }
+}
+
+class SessionAwarePraxisRepository implements PraxisRepository {
+  SessionAwarePraxisRepository(this._client)
+    : _fallback = InMemoryPraxisRepository();
+
+  final SupabaseClient _client;
+  final InMemoryPraxisRepository _fallback;
+
+  PraxisRepository get _activeRepository => _client.auth.currentUser == null
+      ? _fallback
+      : SupabasePraxisRepository(_client);
+
+  @override
+  Future<PraxisState> load() => _activeRepository.load();
+
+  @override
+  Future<PraxisState> saveOnboarding({
+    required PraxisState currentState,
+    required String doctorName,
+    required String qualifications,
+    required String specialty,
+    required String clinicName,
+    required String locality,
+    required String city,
+    required List<String> services,
+    required String phone,
+  }) {
+    return _activeRepository.saveOnboarding(
+      currentState: currentState,
+      doctorName: doctorName,
+      qualifications: qualifications,
+      specialty: specialty,
+      clinicName: clinicName,
+      locality: locality,
+      city: city,
+      services: services,
+      phone: phone,
+    );
+  }
+
+  @override
+  Future<PraxisState> saveBrandKit({
+    required PraxisState currentState,
+    required BrandKit brandKit,
+  }) {
+    return _activeRepository.saveBrandKit(
+      currentState: currentState,
+      brandKit: brandKit,
+    );
+  }
+
+  @override
+  Future<PraxisState> saveCampaignPackage({
+    required PraxisState currentState,
+    required ContentCampaign campaign,
+    required List<ContentItem> items,
+  }) {
+    return _activeRepository.saveCampaignPackage(
+      currentState: currentState,
+      campaign: campaign,
+      items: items,
+    );
+  }
+
+  @override
+  Future<PraxisState> updateContentItem({
+    required PraxisState currentState,
+    required String id,
+    required String caption,
+  }) {
+    return _activeRepository.updateContentItem(
+      currentState: currentState,
+      id: id,
+      caption: caption,
+    );
+  }
+}
+
+List<Map<String, dynamic>> _asRows(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+  return [
+    for (final row in value)
+      if (row is Map) Map<String, dynamic>.from(row),
+  ];
+}
+
+Future<Map<String, dynamic>?> _maybeSingle(dynamic query) async {
+  final value = await query.maybeSingle();
+  if (value is Map) {
+    return Map<String, dynamic>.from(value);
+  }
+  return null;
+}
+
+String _readText(Map<String, dynamic> row, String key) {
+  final value = row[key];
+  return value == null ? '' : value.toString();
+}
+
+String? _nullableText(Map<String, dynamic> row, String key) {
+  final value = _readText(row, key);
+  return value.isEmpty ? null : value;
+}
+
+BrandKit _brandKitFromRow(Map<String, dynamic> row) {
+  return BrandKit(
+    primaryColor: _readText(row, 'primary_color').isEmpty
+        ? '#0D4D57'
+        : _readText(row, 'primary_color'),
+    secondaryColor: _readText(row, 'secondary_color').isEmpty
+        ? '#A7E1D6'
+        : _readText(row, 'secondary_color'),
+    accentColor: _readText(row, 'accent_color').isEmpty
+        ? '#F2C15E'
+        : _readText(row, 'accent_color'),
+    tone: _readText(row, 'tone').isEmpty ? 'warm' : _readText(row, 'tone'),
+    defaultCta: _readText(row, 'default_cta').isEmpty
+        ? 'Book a consultation'
+        : _readText(row, 'default_cta'),
+    disclaimer: _readText(row, 'disclaimer_text').isEmpty
+        ? PraxisState.initial().brandKit.disclaimer
+        : _readText(row, 'disclaimer_text'),
+    logoPath: _nullableText(row, 'logo_path'),
+  );
+}
+
+ContentCampaign _campaignFromRow(Map<String, dynamic> row) {
+  return ContentCampaign(
+    id: _readText(row, 'id'),
+    title: _readText(row, 'title'),
+    goal: _readText(row, 'goal'),
+    durationDays: int.tryParse(_readText(row, 'duration_days')) ?? 30,
+    startDate:
+        DateTime.tryParse(_readText(row, 'start_date')) ?? DateTime.now(),
+  );
+}
+
+ContentItem _contentItemFromRow(Map<String, dynamic> row) {
+  return ContentItem(
+    id: _readText(row, 'id'),
+    campaignId: _readText(row, 'campaign_id'),
+    dayOffset: int.tryParse(_readText(row, 'day_offset')) ?? 0,
+    title: _readText(row, 'title'),
+    category: _readText(row, 'category'),
+    status: _readText(row, 'status'),
+    caption: _readText(row, 'caption'),
+    shortCta: _readText(row, 'short_cta'),
+    reelScript: _readText(row, 'reel_script'),
+  );
+}
+
+String _dateOnly(DateTime date) {
+  final year = date.year.toString().padLeft(4, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  return '$year-$month-$day';
+}
+
+String _newUuid() {
+  final random = Random.secure();
+  final bytes = List<int>.generate(16, (_) => random.nextInt(256));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  final hex = bytes
+      .map((byte) => byte.toRadixString(16).padLeft(2, '0'))
+      .join();
+  return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
+}
+
+class PraxisController extends StateNotifier<PraxisState> {
+  PraxisController({PraxisRepository? repository})
+    : _repository = repository ?? InMemoryPraxisRepository(),
+      super(PraxisState.initial());
+
+  final PraxisRepository _repository;
+
+  Future<void> load() async {
+    state = await _repository.load();
+  }
+
+  Future<void> signInDemo() async {
+    final loadedState = await _repository.load();
+    state = loadedState.copyWith(isAuthenticated: true);
   }
 
   void signOut() {
     state = PraxisState.initial();
   }
 
-  void completeOnboarding({
+  Future<void> completeOnboarding({
     required String doctorName,
     required String qualifications,
     required String clinicName,
@@ -238,28 +839,21 @@ class PraxisController extends StateNotifier<PraxisState> {
     required List<String> services,
     required String phone,
     String specialty = 'Dermatology',
-  }) {
-    final doctor = DoctorProfile(
-      name: doctorName,
+  }) async {
+    state = await _repository.saveOnboarding(
+      currentState: state,
+      doctorName: doctorName,
       qualifications: qualifications,
       specialty: specialty,
-    );
-    final clinic = ClinicProfile(
-      name: clinicName,
+      clinicName: clinicName,
       locality: locality,
       city: city,
       services: services,
       phone: phone,
     );
-    state = state.copyWith(
-      isAuthenticated: true,
-      doctor: doctor,
-      clinic: clinic,
-      brandKit: state.brandKit.copyWith(defaultCta: state.brandKit.defaultCta),
-    );
   }
 
-  void generateThirtyDayCampaign() {
+  Future<void> generateThirtyDayCampaign() async {
     final clinic = state.clinic;
     final doctor = state.doctor;
     if (clinic == null || doctor == null) {
@@ -285,18 +879,18 @@ class PraxisController extends StateNotifier<PraxisState> {
       'faq': 'FAQ',
     };
     final campaign = ContentCampaign(
-      id: 'campaign-30-day',
+      id: _newUuid(),
       title: '30-day Dermatology Growth Campaign',
       goal: 'increase appointment enquiries',
       durationDays: 30,
-      startDate: DateTime(2026, 6, 22),
+      startDate: DateTime.now(),
     );
     final items = List.generate(30, (index) {
       final category = categories[index % categories.length];
       final service = clinic.services[index % clinic.services.length];
       final label = categoryLabels[category]!;
       return ContentItem(
-        id: 'item-${index + 1}',
+        id: _newUuid(),
         campaignId: campaign.id,
         dayOffset: index,
         title: 'Day ${index + 1}: $label for $service',
@@ -310,26 +904,27 @@ class PraxisController extends StateNotifier<PraxisState> {
       );
     });
 
-    state = state.copyWith(campaign: campaign, items: items);
-  }
-
-  void updateContentItem(String id, {required String caption}) {
-    state = state.copyWith(
-      items: [
-        for (final item in state.items)
-          if (item.id == id)
-            item.copyWith(caption: caption, status: 'drafted')
-          else
-            item,
-      ],
+    state = await _repository.saveCampaignPackage(
+      currentState: state,
+      campaign: campaign,
+      items: items,
     );
   }
 
-  void updateBrandKit({
+  Future<void> updateContentItem(String id, {required String caption}) async {
+    state = await _repository.updateContentItem(
+      currentState: state,
+      id: id,
+      caption: caption,
+    );
+  }
+
+  Future<void> updateBrandKit({
     required String primaryColor,
     required String defaultCta,
-  }) {
-    state = state.copyWith(
+  }) async {
+    state = await _repository.saveBrandKit(
+      currentState: state,
       brandKit: state.brandKit.copyWith(
         primaryColor: primaryColor,
         defaultCta: defaultCta,
@@ -338,10 +933,22 @@ class PraxisController extends StateNotifier<PraxisState> {
   }
 }
 
+final praxisRepositoryProvider = Provider<PraxisRepository>((ref) {
+  final settings = SupabaseSettings.fromEnvironment();
+  if (settings.isConfigured) {
+    try {
+      return SessionAwarePraxisRepository(Supabase.instance.client);
+    } on StateError {
+      return InMemoryPraxisRepository();
+    }
+  }
+  return InMemoryPraxisRepository();
+});
+
 final praxisProvider = StateNotifierProvider<PraxisController, PraxisState>((
   ref,
 ) {
-  return PraxisController();
+  return PraxisController(repository: ref.watch(praxisRepositoryProvider));
 });
 
 class PraxisLumeApp extends StatelessWidget {
@@ -429,11 +1036,26 @@ class _PraxisRouterAppState extends State<_PraxisRouterApp> {
   }
 }
 
-class SignInScreen extends ConsumerWidget {
+class SignInScreen extends ConsumerStatefulWidget {
   const SignInScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SignInScreen> createState() => _SignInScreenState();
+}
+
+class _SignInScreenState extends ConsumerState<SignInScreen> {
+  final _email = TextEditingController();
+  final _password = TextEditingController();
+
+  @override
+  void dispose() {
+    _email.dispose();
+    _password.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
         child: ConstrainedBox(
@@ -454,21 +1076,94 @@ class SignInScreen extends ConsumerWidget {
                 const SizedBox(height: 8),
                 const Text('Sign in to continue'),
                 const SizedBox(height: 24),
+                TextField(
+                  key: const Key('emailField'),
+                  controller: _email,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('passwordField'),
+                  controller: _password,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
                 FilledButton(
-                  onPressed: () {
-                    ref.read(praxisProvider.notifier).signInDemo();
-                    context.go('/onboarding');
+                  onPressed: () => _authenticate(createAccount: false),
+                  child: const Text('Sign in'),
+                ),
+                const SizedBox(height: 8),
+                OutlinedButton(
+                  onPressed: () => _authenticate(createAccount: true),
+                  child: const Text('Create account'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () async {
+                    await ref.read(praxisProvider.notifier).signInDemo();
+                    if (!context.mounted) {
+                      return;
+                    }
+                    final state = ref.read(praxisProvider);
+                    context.go(
+                      state.onboardingComplete ? '/dashboard' : '/onboarding',
+                    );
                   },
                   child: const Text('Use demo account'),
                 ),
-                const SizedBox(height: 8),
-                OutlinedButton(onPressed: () {}, child: const Text('Sign in')),
               ],
             ),
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _authenticate({required bool createAccount}) async {
+    final settings = SupabaseSettings.fromEnvironment();
+    if (!settings.isConfigured) {
+      _showMessage('Supabase is not configured for this build');
+      return;
+    }
+
+    try {
+      final auth = Supabase.instance.client.auth;
+      if (createAccount) {
+        await auth.signUp(email: _email.text.trim(), password: _password.text);
+      } else {
+        await auth.signInWithPassword(
+          email: _email.text.trim(),
+          password: _password.text,
+        );
+      }
+      await ref.read(praxisProvider.notifier).load();
+      if (!mounted) {
+        return;
+      }
+      final state = ref.read(praxisProvider);
+      context.go(state.onboardingComplete ? '/dashboard' : '/onboarding');
+    } on AuthException catch (error) {
+      _showMessage(error.message);
+    } catch (_) {
+      _showMessage('Sign in failed');
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -559,11 +1254,11 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     );
   }
 
-  void _submit() {
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    ref
+    await ref
         .read(praxisProvider.notifier)
         .completeOnboarding(
           doctorName: _doctorName.text.trim(),
@@ -578,6 +1273,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               .toList(),
           phone: _phone.text.trim(),
         );
+    if (!mounted) {
+      return;
+    }
     context.go('/dashboard');
   }
 
@@ -693,7 +1391,7 @@ class CalendarScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           FilledButton(
-            onPressed: () =>
+            onPressed: () async =>
                 ref.read(praxisProvider.notifier).generateThirtyDayCampaign(),
             child: const Text('Generate 30-day campaign'),
           ),
@@ -777,10 +1475,13 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
             spacing: 8,
             children: [
               FilledButton(
-                onPressed: () {
-                  ref
+                onPressed: () async {
+                  await ref
                       .read(praxisProvider.notifier)
                       .updateContentItem(item.id, caption: _caption.text);
+                  if (!context.mounted) {
+                    return;
+                  }
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Content item saved')),
                   );
@@ -870,13 +1571,16 @@ class _BrandKitScreenState extends ConsumerState<BrandKitScreen> {
           ),
           const SizedBox(height: 12),
           FilledButton(
-            onPressed: () {
-              ref
+            onPressed: () async {
+              await ref
                   .read(praxisProvider.notifier)
                   .updateBrandKit(
                     primaryColor: _primaryColor.text.trim(),
                     defaultCta: _cta.text.trim(),
                   );
+              if (!context.mounted) {
+                return;
+              }
               ScaffoldMessenger.of(
                 context,
               ).showSnackBar(const SnackBar(content: Text('Brand kit saved')));

@@ -1,0 +1,197 @@
+import 'package:flutter_test/flutter_test.dart';
+import 'package:praxislume_app/main.dart';
+
+void main() {
+  test('loads persisted Praxis state from repository', () async {
+    final repository = RecordingPraxisRepository(
+      initialState: PraxisState.initial().copyWith(
+        isAuthenticated: true,
+        clinic: const ClinicProfile(
+          id: 'clinic-1',
+          name: 'Saved Clinic',
+          locality: 'Aundh',
+          city: 'Pune',
+          services: ['Acne care'],
+          phone: '+91 98765 43210',
+        ),
+        doctor: const DoctorProfile(
+          id: 'doctor-1',
+          name: 'Dr Saved',
+          qualifications: 'MBBS, MD',
+          specialty: 'Dermatology',
+        ),
+      ),
+    );
+    final controller = PraxisController(repository: repository);
+
+    await controller.load();
+
+    expect(controller.state.isAuthenticated, isTrue);
+    expect(controller.state.clinic?.name, 'Saved Clinic');
+    expect(repository.loadCalls, 1);
+  });
+
+  test('persists onboarding through repository', () async {
+    final repository = RecordingPraxisRepository();
+    final controller = PraxisController(repository: repository);
+
+    await controller.completeOnboarding(
+      doctorName: 'Dr Asha Mehta',
+      qualifications: 'MBBS, MD',
+      clinicName: 'Asha Skin Clinic',
+      locality: 'Aundh',
+      city: 'Pune',
+      services: ['Acne care', 'Skin allergy care'],
+      phone: '+91 98765 43210',
+    );
+
+    expect(repository.onboardingSaveCalls, 1);
+    expect(controller.state.clinic?.name, 'Asha Skin Clinic');
+    expect(controller.state.doctor?.name, 'Dr Asha Mehta');
+  });
+
+  test('persists brand kit edits through repository', () async {
+    final repository = RecordingPraxisRepository(
+      initialState: PraxisState.initial().copyWith(
+        isAuthenticated: true,
+        clinic: const ClinicProfile(
+          id: 'clinic-1',
+          name: 'Asha Skin Clinic',
+          locality: 'Aundh',
+          city: 'Pune',
+          services: ['Acne care'],
+          phone: '+91 98765 43210',
+        ),
+      ),
+    );
+    final controller = PraxisController(repository: repository);
+
+    await controller.updateBrandKit(
+      primaryColor: '#123456',
+      defaultCta: 'Book a skin consultation',
+    );
+
+    expect(repository.brandSaveCalls, 1);
+    expect(controller.state.brandKit.primaryColor, '#123456');
+    expect(controller.state.brandKit.defaultCta, 'Book a skin consultation');
+  });
+
+  test('persists generated campaign package through repository', () async {
+    final repository = RecordingPraxisRepository(
+      initialState: PraxisState.initial().copyWith(
+        isAuthenticated: true,
+        clinic: const ClinicProfile(
+          id: 'clinic-1',
+          name: 'Asha Skin Clinic',
+          locality: 'Aundh',
+          city: 'Pune',
+          services: ['Acne care'],
+          phone: '+91 98765 43210',
+        ),
+        doctor: const DoctorProfile(
+          id: 'doctor-1',
+          name: 'Dr Asha Mehta',
+          qualifications: 'MBBS, MD',
+          specialty: 'Dermatology',
+        ),
+      ),
+    );
+    final controller = PraxisController(repository: repository);
+
+    await controller.load();
+    await controller.generateThirtyDayCampaign();
+
+    expect(repository.campaignSaveCalls, 1);
+    expect(controller.state.campaign?.durationDays, 30);
+    expect(controller.state.items, hasLength(30));
+  });
+}
+
+class RecordingPraxisRepository implements PraxisRepository {
+  RecordingPraxisRepository({PraxisState? initialState})
+    : storedState = initialState ?? PraxisState.initial();
+
+  PraxisState storedState;
+  int loadCalls = 0;
+  int onboardingSaveCalls = 0;
+  int brandSaveCalls = 0;
+  int campaignSaveCalls = 0;
+
+  @override
+  Future<PraxisState> load() async {
+    loadCalls += 1;
+    return storedState;
+  }
+
+  @override
+  Future<PraxisState> saveOnboarding({
+    required PraxisState currentState,
+    required String doctorName,
+    required String qualifications,
+    required String specialty,
+    required String clinicName,
+    required String locality,
+    required String city,
+    required List<String> services,
+    required String phone,
+  }) async {
+    onboardingSaveCalls += 1;
+    storedState = currentState.copyWith(
+      isAuthenticated: true,
+      clinic: ClinicProfile(
+        id: 'clinic-1',
+        name: clinicName,
+        locality: locality,
+        city: city,
+        services: services,
+        phone: phone,
+      ),
+      doctor: DoctorProfile(
+        id: 'doctor-1',
+        name: doctorName,
+        qualifications: qualifications,
+        specialty: specialty,
+      ),
+    );
+    return storedState;
+  }
+
+  @override
+  Future<PraxisState> saveBrandKit({
+    required PraxisState currentState,
+    required BrandKit brandKit,
+  }) async {
+    brandSaveCalls += 1;
+    storedState = currentState.copyWith(brandKit: brandKit);
+    return storedState;
+  }
+
+  @override
+  Future<PraxisState> saveCampaignPackage({
+    required PraxisState currentState,
+    required ContentCampaign campaign,
+    required List<ContentItem> items,
+  }) async {
+    campaignSaveCalls += 1;
+    storedState = currentState.copyWith(campaign: campaign, items: items);
+    return storedState;
+  }
+
+  @override
+  Future<PraxisState> updateContentItem({
+    required PraxisState currentState,
+    required String id,
+    required String caption,
+  }) async {
+    storedState = currentState.copyWith(
+      items: [
+        for (final item in currentState.items)
+          if (item.id == id)
+            item.copyWith(caption: caption, status: 'drafted')
+          else
+            item,
+      ],
+    );
+    return storedState;
+  }
+}

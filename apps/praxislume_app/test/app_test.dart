@@ -11,6 +11,28 @@ void main() {
     expect(find.text('Sign in'), findsWidgets);
   });
 
+  testWidgets('shows Supabase sign in form and local configuration fallback', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const PraxisLumeApp());
+
+    expect(find.byKey(const Key('emailField')), findsOneWidget);
+    expect(find.byKey(const Key('passwordField')), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const Key('emailField')),
+      'doctor@example.com',
+    );
+    await tester.enterText(find.byKey(const Key('passwordField')), 'password');
+    await tester.tap(find.text('Sign in'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(
+      find.text('Supabase is not configured for this build'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('validates onboarding before dashboard', (tester) async {
     await tester.pumpWidget(const PraxisLumeApp());
 
