@@ -170,6 +170,42 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Media Studio is outside the MVP.'), findsOneWidget);
   });
+
+  testWidgets('mobile workspace routes use drawer navigation cleanly', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const PraxisLumeApp());
+    await _completeDemoOnboarding(tester);
+
+    expect(find.text('Asha Skin Clinic'), findsOneWidget);
+
+    await _openMobileDrawer(tester);
+    await tester.tap(find.text('Generate Content'));
+    await tester.pumpAndSettle();
+    expect(find.text('Content Conveyor Belt'), findsOneWidget);
+
+    await _openMobileDrawer(tester);
+    await tester.tap(find.text('Content Library'));
+    await tester.pumpAndSettle();
+    expect(find.text('All your content in one place.'), findsOneWidget);
+
+    await _openMobileDrawer(tester);
+    await tester.tap(find.text('Brand'));
+    await tester.pumpAndSettle();
+    expect(find.text('Brand Settings'), findsOneWidget);
+
+    await _openMobileDrawer(tester);
+    await tester.tap(find.text('Settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('Settings'), findsOneWidget);
+
+    expect(tester.takeException(), isNull);
+  });
 }
 
 Future<void> _completeDemoOnboarding(
@@ -178,6 +214,7 @@ Future<void> _completeDemoOnboarding(
   String clinicName = 'Asha Skin Clinic',
   String services = 'Acne care, Skin allergy care',
 }) async {
+  await tester.ensureVisible(find.text('Use demo account'));
   await tester.tap(find.text('Use demo account'));
   await tester.pumpAndSettle();
   await tester.enterText(
@@ -197,6 +234,13 @@ Future<void> _completeDemoOnboarding(
     find.byKey(const Key('phoneField')),
     '+91 98765 43210',
   );
+  await tester.ensureVisible(find.text('Complete onboarding'));
   await tester.tap(find.text('Complete onboarding'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _openMobileDrawer(WidgetTester tester) async {
+  final scaffold = tester.state<ScaffoldState>(find.byType(Scaffold).last);
+  scaffold.openDrawer();
   await tester.pumpAndSettle();
 }

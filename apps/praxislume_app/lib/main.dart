@@ -1731,26 +1731,46 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             color: praxisSurface,
             border: Border(top: BorderSide(color: praxisLine)),
           ),
-          child: Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => context.go('/signin'),
-                icon: const Icon(Icons.arrow_back),
-                label: const Text('Back'),
-              ),
-              const Spacer(),
-              if (!compact) ...[
-                TextButton(onPressed: () {}, child: const Text('Skip for now')),
-                const SizedBox(width: 12),
-              ],
-              FilledButton.icon(
-                onPressed: _submit,
-                iconAlignment: IconAlignment.end,
-                icon: const Icon(Icons.arrow_forward),
-                label: const Text('Complete onboarding'),
-              ),
-            ],
-          ),
+          child: compact
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: _submit,
+                      iconAlignment: IconAlignment.end,
+                      icon: const Icon(Icons.arrow_forward),
+                      label: const Text('Complete onboarding'),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      onPressed: () => context.go('/signin'),
+                      icon: const Icon(Icons.arrow_back),
+                      label: const Text('Back'),
+                    ),
+                  ],
+                )
+              : Row(
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: () => context.go('/signin'),
+                      icon: const Icon(Icons.arrow_back),
+                      label: const Text('Back'),
+                    ),
+                    const Spacer(),
+                    TextButton(
+                      onPressed: () {},
+                      child: const Text('Skip for now'),
+                    ),
+                    const SizedBox(width: 12),
+                    FilledButton.icon(
+                      onPressed: _submit,
+                      iconAlignment: IconAlignment.end,
+                      icon: const Icon(Icons.arrow_forward),
+                      label: const Text('Complete onboarding'),
+                    ),
+                  ],
+                ),
         ),
       ),
       body: SafeArea(
@@ -2114,15 +2134,16 @@ class _DashboardGrid extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
                         "Today's Tasks",
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      const SizedBox(width: 8),
                       PraxisChip(label: '${items.length}'),
-                      const Spacer(),
                       OutlinedButton(
                         onPressed: () => context.go('/calendar'),
                         child: const Text('View Calendar'),
@@ -2281,33 +2302,7 @@ class GenerateContentScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               PraxisCard(
-                child: Row(
-                  children: const [
-                    _StepPill(
-                      number: '1',
-                      title: 'Topic',
-                      text: 'Tell us what to create',
-                    ),
-                    Expanded(child: Divider()),
-                    _StepPill(
-                      number: '2',
-                      title: 'Generate',
-                      text: 'Draft the package',
-                    ),
-                    Expanded(child: Divider()),
-                    _StepPill(
-                      number: '3',
-                      title: 'Review',
-                      text: 'Customize and approve',
-                    ),
-                    Expanded(child: Divider()),
-                    _StepPill(
-                      number: '4',
-                      title: 'Export',
-                      text: 'Manual copy only',
-                    ),
-                  ],
-                ),
+                child: _GenerateSteps(compact: constraints.maxWidth < 620),
               ),
               const SizedBox(height: 18),
               if (wide)
@@ -2342,29 +2337,90 @@ class _StepPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Flexible(
-      child: Row(
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CircleAvatar(
+          backgroundColor: number == '1' ? praxisPurple : praxisMint,
+          foregroundColor: number == '1' ? Colors.white : praxisTealDark,
+          child: Text(
+            number,
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: Theme.of(context).textTheme.titleMedium),
+              Text(text, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _GenerateSteps extends StatelessWidget {
+  const _GenerateSteps({required this.compact});
+
+  final bool compact;
+
+  static const _steps = [
+    _StepPill(number: '1', title: 'Topic', text: 'Tell us what to create'),
+    _StepPill(number: '2', title: 'Generate', text: 'Draft the package'),
+    _StepPill(number: '3', title: 'Review', text: 'Customize and approve'),
+    _StepPill(number: '4', title: 'Export', text: 'Manual copy only'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    if (compact) {
+      return Wrap(
+        spacing: 12,
+        runSpacing: 12,
         children: [
-          CircleAvatar(
-            backgroundColor: number == '1' ? praxisPurple : praxisMint,
-            foregroundColor: number == '1' ? Colors.white : praxisTealDark,
-            child: Text(
-              number,
-              style: const TextStyle(fontWeight: FontWeight.w900),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.titleMedium),
-                Text(text, style: Theme.of(context).textTheme.bodySmall),
-              ],
-            ),
-          ),
+          for (final step in _steps) SizedBox(width: 138, child: step),
         ],
-      ),
+      );
+    }
+
+    return Row(
+      children: const [
+        Expanded(
+          child: _StepPill(
+            number: '1',
+            title: 'Topic',
+            text: 'Tell us what to create',
+          ),
+        ),
+        Expanded(child: Divider()),
+        Expanded(
+          child: _StepPill(
+            number: '2',
+            title: 'Generate',
+            text: 'Draft the package',
+          ),
+        ),
+        Expanded(child: Divider()),
+        Expanded(
+          child: _StepPill(
+            number: '3',
+            title: 'Review',
+            text: 'Customize and approve',
+          ),
+        ),
+        Expanded(child: Divider()),
+        Expanded(
+          child: _StepPill(
+            number: '4',
+            title: 'Export',
+            text: 'Manual copy only',
+          ),
+        ),
+      ],
     );
   }
 }
@@ -2483,13 +2539,15 @@ class _GeneratedPackagePanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               const PraxisChip(
                 label: 'Review package',
                 icon: Icons.check_circle,
               ),
-              const Spacer(),
               OutlinedButton.icon(
                 onPressed: () => context.go('/calendar'),
                 icon: const Icon(Icons.calendar_month_outlined),
