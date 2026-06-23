@@ -22,7 +22,7 @@ class GenerateContentScreen extends ConsumerWidget {
         onPressed: () async {
           await ref.read(praxisProvider.notifier).generateThirtyDayCampaign();
           if (context.mounted) {
-            context.go('/calendar');
+            context.go('/campaign-ready');
           }
         },
         icon: const Icon(Icons.auto_awesome),
@@ -38,6 +38,23 @@ class GenerateContentScreen extends ConsumerWidget {
             children: [
               PraxisCard(
                 child: _GenerateSteps(compact: constraints.maxWidth < 620),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  key: const Key('generateCampaignButton'),
+                  onPressed: () async {
+                    await ref
+                        .read(praxisProvider.notifier)
+                        .generateThirtyDayCampaign();
+                    if (context.mounted) {
+                      context.go('/campaign-ready');
+                    }
+                  },
+                  icon: const Icon(Icons.auto_awesome),
+                  label: const Text('Generate Content'),
+                ),
               ),
               const SizedBox(height: 18),
               if (wide)
@@ -186,16 +203,8 @@ class _GenerateInputPanel extends ConsumerWidget {
             value: state.clinic?.services.firstOrNull ?? 'Sinus consultation',
             icon: Icons.topic_outlined,
           ),
-          const _ReadonlySelect(
-            label: 'Content Type',
-            value: '30-day campaign package',
-            icon: Icons.calendar_month_outlined,
-          ),
-          const _ReadonlySelect(
-            label: 'Audience',
-            value: 'Patients',
-            icon: Icons.groups_2_outlined,
-          ),
+          const SizedBox(height: 2),
+          const _GenerationOptionGrid(),
           const SizedBox(height: 10),
           FilledButton.icon(
             onPressed: () async {
@@ -203,7 +212,7 @@ class _GenerateInputPanel extends ConsumerWidget {
                   .read(praxisProvider.notifier)
                   .generateThirtyDayCampaign();
               if (context.mounted) {
-                context.go('/calendar');
+                context.go('/campaign-ready');
               }
             },
             icon: const Icon(Icons.auto_awesome),
@@ -216,6 +225,70 @@ class _GenerateInputPanel extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _GenerationOptionGrid extends StatelessWidget {
+  const _GenerationOptionGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Campaign package', style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: const [
+            FilterPill(
+              label: '7 days',
+              icon: Icons.calendar_view_week_outlined,
+            ),
+            FilterPill(
+              label: '15 days',
+              icon: Icons.calendar_view_month_outlined,
+            ),
+            FilterPill(
+              label: '30 days',
+              active: true,
+              icon: Icons.calendar_month_outlined,
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Text('Output mix', style: Theme.of(context).textTheme.bodySmall),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: const [
+            PlatformChip(label: 'Captions', icon: Icons.notes_outlined),
+            PlatformChip(
+              label: 'Reel scripts',
+              icon: Icons.movie_creation_outlined,
+            ),
+            PlatformChip(label: 'Manual copy', icon: Icons.copy_outlined),
+            PlatformChip(
+              label: 'Avatar video',
+              icon: Icons.video_call_outlined,
+              enabled: false,
+            ),
+            PlatformChip(
+              label: 'Publishing',
+              icon: Icons.publish_outlined,
+              enabled: false,
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        const PreviewOnlyBanner(
+          message:
+              'Generation calls go through the backend API when configured. Video/avatar/social controls are disabled.',
+        ),
+      ],
     );
   }
 }

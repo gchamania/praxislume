@@ -5,6 +5,7 @@ import '../screens/auth/sign_in_screen.dart';
 import '../screens/auth/sign_up_screen.dart';
 import '../screens/brand/brand_kit_screen.dart';
 import '../screens/calendar/calendar_screen.dart';
+import '../screens/campaign/campaign_ready_screen.dart';
 import '../screens/content/content_detail_screen.dart';
 import '../screens/dashboard/dashboard_screen.dart';
 import '../screens/generate/generate_content_screen.dart';
@@ -57,6 +58,10 @@ class _PraxisRouterAppState extends State<PraxisRouterApp> {
         GoRoute(
           path: '/calendar',
           builder: (context, state) => const CalendarScreen(),
+        ),
+        GoRoute(
+          path: '/campaign-ready',
+          builder: (context, state) => const CampaignReadyScreen(),
         ),
         GoRoute(
           path: '/library',

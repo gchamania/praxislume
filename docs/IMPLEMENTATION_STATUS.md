@@ -8,9 +8,9 @@ PraxisLume is an initialized Git repository with a runnable foundation for v0.1 
 
 - Git repository: initialized in `C:\codex_experiments\PraxisLume`.
 - Git remote: `origin` points to `https://github.com/gchamania/praxislume.git`.
-- Current implementation branch: `surgmuster`.
+- Current implementation branch: `codex/pl-ui-prototype-parity`.
 - Docs: canonical docs are populated and duplicate `docs/PraxisLume_*.md` files have been removed.
-- Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, clean architecture folders, Day 2 mockup-inspired visual foundations, redesigned MVP workspace routes, widget tests, controller tests, and an architecture boundary test.
+- Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, clean architecture folders, Day 2 mockup-inspired visual foundations, prototype-parity MVP workspace routes, widget tests, controller tests, and an architecture boundary test.
 - Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake and OpenAI-compatible provider routing, Supabase-backed generation/quota/compliance stores, and tests.
 - Contracts: `packages/contracts` has shared Zod schemas and tests.
 - Supabase: `supabase` has local config, initial migration, seed data, logo storage policies, and an executable RLS verification script.
@@ -109,7 +109,7 @@ Known missing or deferred implementation areas:
 
 ## Current Version Target
 
-Implemented target: Foundation v0.0, MVP v0.1 prototype, light v0.2 brand kit foundation, Sprint 10-12 backend live-AI routing foundation, and Flutter clean-architecture refactor.
+Implemented target: Foundation v0.0, MVP v0.1 prototype, light v0.2 brand kit foundation, Sprint 10-12 backend live-AI routing foundation, Flutter clean-architecture refactor, and UI/UX prototype parity for the current MVP routes.
 
 Still enforced:
 
@@ -182,11 +182,17 @@ Still enforced:
 - Added `apps/praxislume_app/lib/praxis_lume.dart` as a barrel export for app modules and tests.
 - Added a Flutter architecture test that keeps `main.dart` bootstrap-only and verifies the expected app layers exist.
 - Fast-forward merged `codex/pl-flutter-clean-architecture` into `surgmuster`.
+- Added reusable prototype-style Flutter UI components for section headers, tab strips, filter pills, status badges, platform chips, compact metric cards, preview-only banners, mini bar charts, and responsive deterministic thumbnails.
+- Upgraded sign-in and sign-up toward the HTML prototype split layout with richer benefit/testimonial framing and disabled social sign-in placeholders while preserving Supabase email/password and demo account behavior.
+- Replaced single-page onboarding with a seven-step MVP-safe wizard for specialty/focus areas, clinic details, doctor profile, brand defaults, content goals/platform preferences, review handoff, and completion.
+- Added `/campaign-ready` and changed campaign generation to review the generated package before calendar handoff, with Save as Draft and Approve/Add to Calendar actions.
+- Upgraded dashboard, generate content, calendar, content library, brand settings, settings, templates, analytics, and media studio screens toward the `stitch_web_layout_prototypes` visual language.
+- Added working library search/status/category/sort controls, a weekly calendar review layout, visible Day 1 review action, richer brand-kit tabs, and full preview-only deferred surfaces for Templates, Analytics, and Media Studio.
+- Preserved disabled/deferred states for social publishing, avatar/video generation, analytics engine, template marketplace, CRM, and automation surfaces.
 
 ## In Progress
 
-- No active feature implementation after the Flutter clean-architecture merge. Next work should be production/staging deployment setup and optional live-provider smoke with real staging secrets.
-- Full screenshot comparison remains manual because the in-app browser screenshot API previously timed out against Flutter CanvasKit.
+- Visual screenshot comparison remains manual because the in-app browser screenshot API previously timed out against Flutter CanvasKit.
 
 ## Blocked
 
@@ -195,14 +201,32 @@ Still enforced:
 
 ## Next Recommended Codex Agents
 
-1. Deployment setup agent
+1. Visual QA/browser smoke agent
+   - Run the prototype-parity Flutter web build in browser, smoke the MVP routes, and compare against `stitch_web_layout_prototypes` at desktop and mobile sizes.
+
+2. Deployment setup agent
    - Prepare staging environment variables and deployment notes for Flutter web, Fastify API, Supabase, and optional OpenAI-compatible routing without committing service-role or provider secrets.
 
-2. Live-provider smoke agent
+3. Live-provider smoke agent
    - Run an optional live-provider smoke behind the existing OpenAI-compatible backend adapter with real staging secrets supplied outside Git.
    - Keep fake provider as default and keep all provider keys server-only.
 
 ## Verification Results
+
+Current UI/UX prototype parity verification on `codex/pl-ui-prototype-parity`:
+
+- TDD red check: `flutter test test/app_test.dart` initially failed on missing disabled social auth placeholders, multi-step onboarding, `/campaign-ready`, and rich preview-only route expectations.
+- `dart format .` in `apps/praxislume_app` was run after the large UI edit.
+- `dart format --set-exit-if-changed .` in `apps/praxislume_app` exited 0 with 0 files changed.
+- `flutter test` in `apps/praxislume_app` exited 0 with 13 regular tests passing and 1 local Supabase/API smoke test skipped because dart defines were not provided.
+- `flutter analyze` in `apps/praxislume_app` exited 0 with no issues.
+- `flutter build web` in `apps/praxislume_app` exited 0 and built `build\web`.
+- `npm.cmd run docs:check` at repo root exited 0.
+- Local static server for `build\web` responded 200 at `http://127.0.0.1:8087/`.
+- Browser route smoke for `/signin`, `/signup`, `/onboarding`, `/dashboard`, `/generate`, `/campaign-ready`, `/calendar`, `/library`, `/brand`, `/settings`, `/templates`, `/analytics`, and `/media-studio` loaded with page title `PraxisLume` and 0 console errors.
+- Pending: visual screenshot comparison.
+
+Source-of-truth reconciliation: the UI/UX prototype parity pass remains aligned with `docs/SOURCE_OF_TRUTH.md`. PraxisLume is still a Doctor Growth OS, not a Canva clone or generic scheduler. Full visual parity means richer Flutter equivalents of the prototypes, not activation of future product capability. Templates, Analytics, and Media Studio are polished preview-only/deferred pages. The pass adds no social publishing, avatar/video generation, CRM workflow, diagnosis workflow, patient-identifiable prompt fields, provider keys, service-role keys, backend API changes, or Supabase schema changes.
 
 Current Flutter clean-architecture verification on `codex/pl-flutter-clean-architecture`:
 

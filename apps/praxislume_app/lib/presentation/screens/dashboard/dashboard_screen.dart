@@ -177,27 +177,34 @@ class _DashboardGrid extends StatelessWidget {
                     'Performance Overview',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Deterministic mock metrics until pilot analytics exist.',
+                  ),
                   const SizedBox(height: 16),
-                  SizedBox(
-                    height: 160,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: List.generate(
-                        12,
-                        (index) => Expanded(
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 4),
-                            height: 38 + ((index * 17) % 104).toDouble(),
-                            decoration: BoxDecoration(
-                              color: index.isEven
-                                  ? praxisPurple.withValues(alpha: 0.25)
-                                  : praxisTeal.withValues(alpha: 0.24),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
+                  const MiniBarChart(
+                    values: [24, 42, 38, 58, 46, 72, 64, 84, 76, 96, 88, 110],
+                    height: 154,
+                  ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: const [
+                      PlatformChip(
+                        label: 'Reach estimate',
+                        icon: Icons.visibility_outlined,
                       ),
-                    ),
+                      PlatformChip(
+                        label: 'Manual enquiry notes',
+                        icon: Icons.edit_note_outlined,
+                      ),
+                      PlatformChip(
+                        label: 'Analytics engine',
+                        icon: Icons.bar_chart_outlined,
+                        enabled: false,
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -230,9 +237,9 @@ class _DashboardGrid extends StatelessWidget {
             const SizedBox(height: 16),
             PraxisCard(
               color: praxisPurple.withValues(alpha: 0.06),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+                children: const [
                   PraxisChip(
                     label: 'AI Recommendations',
                     icon: Icons.auto_awesome,

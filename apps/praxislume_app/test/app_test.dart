@@ -10,6 +10,8 @@ void main() {
     expect(find.text('Sign in to continue'), findsOneWidget);
     expect(find.text('Sign in'), findsWidgets);
     expect(find.text('Your Doctor Growth OS.'), findsOneWidget);
+    expect(find.text('Continue with Google'), findsOneWidget);
+    expect(find.text('Continue with Apple'), findsOneWidget);
   });
 
   testWidgets('shows Supabase sign in form and local configuration fallback', (
@@ -25,7 +27,9 @@ void main() {
       'doctor@example.com',
     );
     await tester.enterText(find.byKey(const Key('passwordField')), 'password');
-    await tester.tap(find.text('Sign in'));
+    final signInButton = find.widgetWithText(FilledButton, 'Sign in');
+    await tester.ensureVisible(signInButton);
+    await tester.tap(signInButton);
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(
@@ -37,17 +41,42 @@ void main() {
   testWidgets('validates onboarding before dashboard', (tester) async {
     await tester.pumpWidget(const PraxisLumeApp());
 
+    await tester.ensureVisible(find.text('Use demo account'));
     await tester.tap(find.text('Use demo account'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Step 1 of 7'), findsOneWidget);
-    expect(find.text('Doctor and clinic profile'), findsOneWidget);
+    expect(find.text('Step 1 of 7'), findsWidgets);
+    expect(find.text('Specialty and focus areas'), findsOneWidget);
 
-    await tester.tap(find.text('Complete onboarding'));
+    await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Doctor name is required'), findsOneWidget);
+    expect(find.text('Specialty is required'), findsOneWidget);
 
+    await tester.enterText(
+      find.byKey(const Key('specialtyField')),
+      'Dermatology',
+    );
+    await tester.enterText(
+      find.byKey(const Key('servicesField')),
+      'Acne care, Skin allergy care',
+    );
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    expect(find.text('Clinic details'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const Key('clinicNameField')),
+      'Asha Skin Clinic',
+    );
+    await tester.enterText(find.byKey(const Key('localityField')), 'Aundh');
+    await tester.enterText(find.byKey(const Key('cityField')), 'Pune');
+    await tester.enterText(
+      find.byKey(const Key('phoneField')),
+      '+91 98765 43210',
+    );
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+    expect(find.text('Doctor profile'), findsOneWidget);
     await tester.enterText(
       find.byKey(const Key('doctorNameField')),
       'Dr Asha Mehta',
@@ -56,24 +85,11 @@ void main() {
       find.byKey(const Key('qualificationsField')),
       'MBBS, MD',
     );
-    await tester.enterText(
-      find.byKey(const Key('specialtyField')),
-      'Dermatology',
-    );
-    await tester.enterText(
-      find.byKey(const Key('clinicNameField')),
-      'Asha Skin Clinic',
-    );
-    await tester.enterText(find.byKey(const Key('localityField')), 'Aundh');
-    await tester.enterText(find.byKey(const Key('cityField')), 'Pune');
-    await tester.enterText(
-      find.byKey(const Key('servicesField')),
-      'Acne care, Skin allergy care',
-    );
-    await tester.enterText(
-      find.byKey(const Key('phoneField')),
-      '+91 98765 43210',
-    );
+    for (var i = 0; i < 4; i++) {
+      await tester.tap(find.text('Next'));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Ready to launch'), findsWidgets);
     await tester.tap(find.text('Complete onboarding'));
     await tester.pumpAndSettle();
 
@@ -90,15 +106,22 @@ void main() {
       services: 'Sinus consultation, Ear infection care',
     );
 
-    await tester.tap(find.text('Calendar'));
+    await _tapWorkspaceNav(tester, 'Generate Content');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Generate 30-day campaign'));
+    expect(find.text('Content Conveyor Belt'), findsWidgets);
+    await tester.ensureVisible(find.byKey(const Key('generateCampaignButton')));
+    await tester.tap(find.byKey(const Key('generateCampaignButton')));
     await tester.pumpAndSettle();
 
+    expect(find.text('Campaign Ready'), findsWidgets);
     expect(find.text('30-day ENT Growth Campaign'), findsOneWidget);
     expect(find.textContaining('Content ideas: 30'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('approveCampaignButton')));
+    await tester.tap(find.byKey(const Key('approveCampaignButton')));
+    await tester.pumpAndSettle();
+    expect(find.text('Calendar'), findsWidgets);
 
-    await tester.tap(find.text('Day 1'));
+    await tester.tap(find.byKey(const Key('reviewFirstContentButton')));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('captionField')),
@@ -123,7 +146,7 @@ void main() {
     await tester.pumpWidget(const PraxisLumeApp());
     await _completeDemoOnboarding(tester);
 
-    await tester.tap(find.text('Brand'));
+    await _tapWorkspaceNav(tester, 'Brand');
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('primaryColorField')),
@@ -133,7 +156,9 @@ void main() {
       find.byKey(const Key('ctaField')),
       'Book a skin consultation',
     );
-    await tester.tap(find.text('Save brand kit'));
+    final saveBrandKit = find.text('Save Changes');
+    await tester.ensureVisible(saveBrandKit);
+    await tester.tap(saveBrandKit);
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('Brand kit saved'), findsOneWidget);
@@ -148,29 +173,34 @@ void main() {
 
     await tester.tap(find.text('Generate Content'));
     await tester.pumpAndSettle();
-    expect(find.text('Content Conveyor Belt'), findsOneWidget);
+    expect(find.text('Content Conveyor Belt'), findsWidgets);
 
     await tester.tap(find.text('Content Library'));
     await tester.pumpAndSettle();
     expect(find.text('All your content in one place.'), findsOneWidget);
+    expect(find.byKey(const Key('librarySearchField')), findsOneWidget);
+    expect(find.text('Grid'), findsOneWidget);
 
     await tester.tap(find.text('Templates'));
     await tester.pumpAndSettle();
     expect(
-      find.text('Templates are planned after MVP validation.'),
+      find.text('Preview only / deferred after MVP validation'),
       findsOneWidget,
     );
 
     await tester.tap(find.text('Analytics'));
     await tester.pumpAndSettle();
     expect(
-      find.text('Analytics arrive after pilot usage data exists.'),
+      find.text('Preview only / deferred after MVP validation'),
       findsOneWidget,
     );
 
     await tester.tap(find.text('Media Studio'));
     await tester.pumpAndSettle();
-    expect(find.text('Media Studio is outside the MVP.'), findsOneWidget);
+    expect(
+      find.text('Preview only / deferred after MVP validation'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('mobile workspace routes use drawer navigation cleanly', (
@@ -183,28 +213,32 @@ void main() {
 
     await tester.pumpWidget(const PraxisLumeApp());
     await _completeDemoOnboarding(tester);
+    expect(tester.takeException(), isNull);
 
     expect(find.text('Asha Skin Clinic'), findsOneWidget);
 
     await _openMobileDrawer(tester);
-    await tester.tap(find.text('Generate Content'));
+    await _tapWorkspaceNav(tester, 'Generate Content');
     await tester.pumpAndSettle();
-    expect(find.text('Content Conveyor Belt'), findsOneWidget);
+    expect(find.text('Content Conveyor Belt'), findsWidgets);
+    expect(tester.takeException(), isNull);
 
     await _openMobileDrawer(tester);
-    await tester.tap(find.text('Content Library'));
+    await _tapWorkspaceNav(tester, 'Content Library');
     await tester.pumpAndSettle();
     expect(find.text('All your content in one place.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
 
     await _openMobileDrawer(tester);
-    await tester.tap(find.text('Brand'));
+    await _tapWorkspaceNav(tester, 'Brand');
     await tester.pumpAndSettle();
-    expect(find.text('Brand Settings'), findsOneWidget);
+    expect(find.text('Brand Settings'), findsWidgets);
+    expect(tester.takeException(), isNull);
 
     await _openMobileDrawer(tester);
-    await tester.tap(find.text('Settings'));
+    await _tapWorkspaceNav(tester, 'Settings');
     await tester.pumpAndSettle();
-    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Settings'), findsWidgets);
 
     expect(tester.takeException(), isNull);
   });
@@ -219,6 +253,19 @@ Future<void> _completeDemoOnboarding(
   await tester.ensureVisible(find.text('Use demo account'));
   await tester.tap(find.text('Use demo account'));
   await tester.pumpAndSettle();
+  await tester.enterText(find.byKey(const Key('specialtyField')), specialty);
+  await tester.enterText(find.byKey(const Key('servicesField')), services);
+  await tester.tap(find.text('Next'));
+  await tester.pumpAndSettle();
+  await tester.enterText(find.byKey(const Key('clinicNameField')), clinicName);
+  await tester.enterText(find.byKey(const Key('localityField')), 'Aundh');
+  await tester.enterText(find.byKey(const Key('cityField')), 'Pune');
+  await tester.enterText(
+    find.byKey(const Key('phoneField')),
+    '+91 98765 43210',
+  );
+  await tester.tap(find.text('Next'));
+  await tester.pumpAndSettle();
   await tester.enterText(
     find.byKey(const Key('doctorNameField')),
     'Dr Asha Mehta',
@@ -227,15 +274,10 @@ Future<void> _completeDemoOnboarding(
     find.byKey(const Key('qualificationsField')),
     'MBBS, MD',
   );
-  await tester.enterText(find.byKey(const Key('specialtyField')), specialty);
-  await tester.enterText(find.byKey(const Key('clinicNameField')), clinicName);
-  await tester.enterText(find.byKey(const Key('localityField')), 'Aundh');
-  await tester.enterText(find.byKey(const Key('cityField')), 'Pune');
-  await tester.enterText(find.byKey(const Key('servicesField')), services);
-  await tester.enterText(
-    find.byKey(const Key('phoneField')),
-    '+91 98765 43210',
-  );
+  for (var i = 0; i < 4; i++) {
+    await tester.tap(find.text('Next'));
+    await tester.pumpAndSettle();
+  }
   await tester.ensureVisible(find.text('Complete onboarding'));
   await tester.tap(find.text('Complete onboarding'));
   await tester.pumpAndSettle();
@@ -245,4 +287,10 @@ Future<void> _openMobileDrawer(WidgetTester tester) async {
   final scaffold = tester.state<ScaffoldState>(find.byType(Scaffold).last);
   scaffold.openDrawer();
   await tester.pumpAndSettle();
+}
+
+Future<void> _tapWorkspaceNav(WidgetTester tester, String label) async {
+  final navItem = find.widgetWithText(InkWell, label).last;
+  await tester.ensureVisible(navItem);
+  await tester.tap(navItem);
 }

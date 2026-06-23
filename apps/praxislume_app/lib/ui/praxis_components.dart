@@ -216,6 +216,367 @@ class StatCard extends StatelessWidget {
   }
 }
 
+class PrototypeSectionHeader extends StatelessWidget {
+  const PrototypeSectionHeader({
+    required this.title,
+    this.subtitle,
+    this.trailing,
+    super.key,
+  });
+
+  final String title;
+  final String? subtitle;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final titleBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.titleLarge),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(subtitle!, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ],
+    );
+    if (trailing == null) {
+      return titleBlock;
+    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 520) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [titleBlock, const SizedBox(height: 12), trailing!],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: titleBlock),
+            const SizedBox(width: 12),
+            trailing!,
+          ],
+        );
+      },
+    );
+  }
+}
+
+class StatusBadge extends StatelessWidget {
+  const StatusBadge({
+    required this.label,
+    this.color = praxisMint,
+    this.foreground = praxisTealDark,
+    this.icon,
+    super.key,
+  });
+
+  final String label;
+  final Color color;
+  final Color foreground;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: foreground.withValues(alpha: 0.14)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 14, color: foreground),
+              const SizedBox(width: 5),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class PrototypeTabStrip extends StatelessWidget {
+  const PrototypeTabStrip({
+    required this.tabs,
+    required this.selected,
+    required this.onSelected,
+    super.key,
+  });
+
+  final List<String> tabs;
+  final String selected;
+  final ValueChanged<String> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final tab in tabs)
+          ChoiceChip(
+            label: Text(tab),
+            selected: tab == selected,
+            onSelected: (_) => onSelected(tab),
+            showCheckmark: false,
+            selectedColor: praxisPurple.withValues(alpha: 0.1),
+            labelStyle: TextStyle(
+              color: tab == selected ? praxisPurple : praxisText,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: BorderSide(
+                color: tab == selected
+                    ? praxisPurple.withValues(alpha: 0.28)
+                    : praxisLine,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class FilterPill extends StatelessWidget {
+  const FilterPill({
+    required this.label,
+    this.active = false,
+    this.icon,
+    this.onTap,
+    super.key,
+  });
+
+  final String label;
+  final bool active;
+  final IconData? icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        decoration: BoxDecoration(
+          color: active ? praxisPurple.withValues(alpha: 0.1) : praxisSurface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: active ? praxisPurple.withValues(alpha: 0.32) : praxisLine,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 16, color: active ? praxisPurple : praxisMuted),
+              const SizedBox(width: 6),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: active ? praxisPurple : praxisText,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 13,
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class PlatformChip extends StatelessWidget {
+  const PlatformChip({
+    required this.label,
+    required this.icon,
+    this.enabled = true,
+    super.key,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return StatusBadge(
+      label: enabled ? label : '$label deferred',
+      icon: icon,
+      color: enabled ? const Color(0xFFF3F0FF) : const Color(0xFFF3F5F9),
+      foreground: enabled ? praxisPurple : praxisMuted,
+    );
+  }
+}
+
+class MiniBarChart extends StatelessWidget {
+  const MiniBarChart({
+    required this.values,
+    this.height = 116,
+    this.primary = praxisPurple,
+    this.secondary = praxisTeal,
+    super.key,
+  });
+
+  final List<double> values;
+  final double height;
+  final Color primary;
+  final Color secondary;
+
+  @override
+  Widget build(BuildContext context) {
+    final maxValue = values.fold<double>(1, (max, value) {
+      return value > max ? value : max;
+    });
+    return SizedBox(
+      height: height,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (var i = 0; i < values.length; i++)
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 3),
+                child: FractionallySizedBox(
+                  heightFactor: (values[i] / maxValue).clamp(0.14, 1),
+                  alignment: Alignment.bottomCenter,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: (i.isEven ? primary : secondary).withValues(
+                        alpha: 0.24 + (i % 3) * 0.08,
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class PreviewOnlyBanner extends StatelessWidget {
+  const PreviewOnlyBanner({
+    this.message = 'Preview only / deferred after MVP validation',
+    this.icon = Icons.lock_clock_outlined,
+    super.key,
+  });
+
+  final String message;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return PraxisCard(
+      color: const Color(0xFFFFF8E8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFF9B6500)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(
+                color: Color(0xFF6F4A00),
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class PrototypeMetricCard extends StatelessWidget {
+  const PrototypeMetricCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.tint,
+    this.note,
+    super.key,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color tint;
+  final String? note;
+
+  @override
+  Widget build(BuildContext context) {
+    return PraxisCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: tint.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: tint, size: 20),
+              ),
+              const Spacer(),
+              if (note != null)
+                Text(
+                  note!,
+                  style: const TextStyle(
+                    color: praxisTealDark,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(value, style: Theme.of(context).textTheme.headlineSmall),
+          const SizedBox(height: 4),
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ),
+    );
+  }
+}
+
 class MedicalThumbnail extends StatelessWidget {
   const MedicalThumbnail({
     required this.title,
@@ -245,54 +606,65 @@ class MedicalThumbnail extends StatelessWidget {
     final textColor = light ? praxisInk : Colors.white;
     return AspectRatio(
       aspectRatio: aspectRatio,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: palette,
-          ),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-        ),
-        child: Stack(
-          children: [
-            Positioned(
-              right: -12,
-              bottom: -14,
-              child: Icon(
-                _iconForCategory(category),
-                color: (light ? Colors.white : Colors.white).withValues(
-                  alpha: light ? 0.52 : 0.2,
-                ),
-                size: 92,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact =
+              constraints.maxHeight < 96 || constraints.maxWidth < 130;
+          return Container(
+            padding: EdgeInsets.all(compact ? 8 : 14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: palette,
+              ),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(8),
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Stack(
               children: [
-                PraxisChip(
-                  label: _categoryLabel(category),
-                  color: Colors.white.withValues(alpha: light ? 0.78 : 0.18),
-                  foreground: textColor,
-                ),
-                const Spacer(),
-                Text(
-                  title,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: textColor,
-                    fontSize: 24,
-                    height: 1.02,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0,
+                Positioned(
+                  right: -12,
+                  bottom: -14,
+                  child: Icon(
+                    _iconForCategory(category),
+                    color: (light ? Colors.white : Colors.white).withValues(
+                      alpha: light ? 0.52 : 0.2,
+                    ),
+                    size: compact ? 44 : 92,
                   ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!compact)
+                      PraxisChip(
+                        label: _categoryLabel(category),
+                        color: Colors.white.withValues(
+                          alpha: light ? 0.78 : 0.18,
+                        ),
+                        foreground: textColor,
+                      ),
+                    const Spacer(),
+                    Text(
+                      title,
+                      maxLines: compact ? 2 : 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: compact ? 13 : 24,
+                        height: 1.05,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ],
-        ),
+          );
+        },
       ),
     );
   }
@@ -345,7 +717,7 @@ class WorkspaceShell extends StatelessWidget {
     final isCompact = MediaQuery.sizeOf(context).width < 700;
     final body = Column(
       children: [
-        _TopBar(title: 'PraxisLume OS', primaryAction: primaryAction),
+        _TopBar(title: title, primaryAction: primaryAction),
         Expanded(
           child: ListView(
             padding: EdgeInsets.fromLTRB(
@@ -407,11 +779,25 @@ class _TopBar extends StatelessWidget {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final dense = constraints.maxWidth < 720;
+          final showPrimary =
+              primaryAction != null && constraints.maxWidth >= 760;
+          final showExtras = constraints.maxWidth >= 1000;
           return Row(
             children: [
-              IconButton(onPressed: () {}, icon: const Icon(Icons.menu)),
-              const SizedBox(width: 14),
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: praxisPurple.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.local_hospital_outlined,
+                  color: praxisPurple,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Text(
                   title,
@@ -420,15 +806,34 @@ class _TopBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 14),
-              if (primaryAction != null && !dense) ...[
-                primaryAction!,
-                const SizedBox(width: 18),
-              ],
-              if (!dense)
+              if (showPrimary) ...[primaryAction!, const SizedBox(width: 18)],
+              if (showExtras) ...[
+                SizedBox(
+                  width: 250,
+                  child: TextField(
+                    readOnly: true,
+                    decoration: InputDecoration(
+                      hintText: 'Search campaigns',
+                      prefixIcon: const Icon(Icons.search),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
+                      ),
+                      fillColor: praxisCanvas,
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: praxisLine),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
                 IconButton(
+                  tooltip: 'Help',
                   onPressed: () {},
                   icon: const Icon(Icons.help_outline),
                 ),
+              ],
               Stack(
                 alignment: Alignment.topRight,
                 children: [
@@ -450,11 +855,37 @@ class _TopBar extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(width: 8),
-              const CircleAvatar(
-                radius: 18,
-                backgroundColor: praxisMint,
-                child: Icon(Icons.person, color: praxisTealDark, size: 20),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                decoration: BoxDecoration(
+                  color: praxisCanvas,
+                  border: Border.all(color: praxisLine),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 15,
+                      backgroundColor: praxisMint,
+                      child: Icon(
+                        Icons.person,
+                        color: praxisTealDark,
+                        size: 17,
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Clinic Admin',
+                      style: TextStyle(
+                        color: praxisText,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                        letterSpacing: 0,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           );
@@ -473,7 +904,7 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     final showModeCard = MediaQuery.sizeOf(context).height >= 700;
     return Container(
-      width: 236,
+      width: 260,
       decoration: const BoxDecoration(
         color: praxisSurface,
         border: Border(right: BorderSide(color: praxisLine)),

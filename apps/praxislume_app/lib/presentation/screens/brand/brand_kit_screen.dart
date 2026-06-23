@@ -18,21 +18,33 @@ class BrandKitScreen extends ConsumerStatefulWidget {
 
 class _BrandKitScreenState extends ConsumerState<BrandKitScreen> {
   late final TextEditingController _primaryColor;
+  late final TextEditingController _secondaryColor;
+  late final TextEditingController _accentColor;
   late final TextEditingController _cta;
+  late final TextEditingController _disclaimer;
   bool _uploadingLogo = false;
+  String _tone = 'warm';
+  String _tab = 'Identity';
 
   @override
   void initState() {
     super.initState();
     final brand = ref.read(praxisProvider).brandKit;
     _primaryColor = TextEditingController(text: brand.primaryColor);
+    _secondaryColor = TextEditingController(text: brand.secondaryColor);
+    _accentColor = TextEditingController(text: brand.accentColor);
     _cta = TextEditingController(text: brand.defaultCta);
+    _disclaimer = TextEditingController(text: brand.disclaimer);
+    _tone = brand.tone;
   }
 
   @override
   void dispose() {
     _primaryColor.dispose();
+    _secondaryColor.dispose();
+    _accentColor.dispose();
     _cta.dispose();
+    _disclaimer.dispose();
     super.dispose();
   }
 
@@ -53,6 +65,37 @@ class _BrandKitScreenState extends ConsumerState<BrandKitScreen> {
           final wide = constraints.maxWidth > 980;
           final form = Column(
             children: [
+              PraxisCard(
+                child: PrototypeTabStrip(
+                  tabs: const [
+                    'Identity',
+                    'Visuals',
+                    'Content Defaults',
+                    'Video Branding',
+                    'AI Presenter',
+                    'Social Links',
+                    'Multi-clinic',
+                  ],
+                  selected: _tab,
+                  onSelected: (value) {
+                    if (const [
+                      'Video Branding',
+                      'AI Presenter',
+                      'Social Links',
+                      'Multi-clinic',
+                    ].contains(value)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('$value is preview-only after MVP.'),
+                        ),
+                      );
+                      return;
+                    }
+                    setState(() => _tab = value);
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
               PraxisCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,6 +194,51 @@ class _BrandKitScreenState extends ConsumerState<BrandKitScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _secondaryColor,
+                            decoration: const InputDecoration(
+                              labelText: 'Secondary color',
+                              prefixIcon: Icon(
+                                Icons.format_color_fill_outlined,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _accentColor,
+                            decoration: const InputDecoration(
+                              labelText: 'Accent color',
+                              prefixIcon: Icon(Icons.auto_fix_high_outlined),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final tone in const [
+                          'warm',
+                          'authoritative',
+                          'simple',
+                          'premium',
+                          'local-language friendly',
+                        ])
+                          FilterPill(
+                            label: tone,
+                            active: _tone == tone,
+                            onTap: () => setState(() => _tone = tone),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
                     TextField(
                       key: const Key('ctaField'),
                       controller: _cta,
@@ -158,6 +246,21 @@ class _BrandKitScreenState extends ConsumerState<BrandKitScreen> {
                         labelText: 'Default CTA',
                         prefixIcon: Icon(Icons.campaign_outlined),
                       ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: _disclaimer,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Disclaimer',
+                        alignLabelWithHint: true,
+                        prefixIcon: Icon(Icons.policy_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const PreviewOnlyBanner(
+                      message:
+                          'Future brand tabs are visible for parity only. No avatar, video, publishing, or multi-clinic automation is active.',
                     ),
                   ],
                 ),
@@ -208,7 +311,11 @@ class _BrandKitScreenState extends ConsumerState<BrandKitScreen> {
         .read(praxisProvider.notifier)
         .updateBrandKit(
           primaryColor: _primaryColor.text.trim(),
+          secondaryColor: _secondaryColor.text.trim(),
+          accentColor: _accentColor.text.trim(),
+          tone: _tone,
           defaultCta: _cta.text.trim(),
+          disclaimer: _disclaimer.text.trim(),
         );
     if (!context.mounted) {
       return;

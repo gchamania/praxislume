@@ -48,6 +48,8 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           Text('Welcome back', style: Theme.of(context).textTheme.displaySmall),
           const SizedBox(height: 8),
           const Text('Sign in to continue'),
+          const SizedBox(height: 18),
+          const SocialAuthPlaceholders(),
           const SizedBox(height: 20),
           TextField(
             key: const Key('emailField'),

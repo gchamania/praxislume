@@ -49,6 +49,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           ),
           const SizedBox(height: 8),
           const Text('Start with the essentials for your clinic workspace.'),
+          const SizedBox(height: 18),
+          const SocialAuthPlaceholders(),
           const SizedBox(height: 24),
           _authField(_name, 'Full Name', Icons.person_outline),
           _authField(_email, 'Email Address', Icons.mail_outline),

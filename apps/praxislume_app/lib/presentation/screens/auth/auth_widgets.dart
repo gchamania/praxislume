@@ -168,6 +168,34 @@ class AuthHeroPanel extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 36),
+            Row(
+              children: const [
+                Expanded(
+                  child: _HeroStat(value: '30', label: 'days planned'),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: _HeroStat(value: '7', label: 'safe categories'),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: _HeroStat(value: '0', label: 'publishing APIs'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 30),
+            PraxisCard(
+              color: Colors.white.withValues(alpha: 0.12),
+              child: Text(
+                '"PraxisLume makes clinic education feel planned, branded, and reviewable before anything leaves the practice."',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.92),
+                  height: 1.42,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(height: 28),
             const _HeroBenefit(
               icon: Icons.schedule,
               title: 'Save 10+ hours every week',
@@ -185,6 +213,48 @@ class AuthHeroPanel extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _HeroStat extends StatelessWidget {
+  const _HeroStat({required this.value, required this.label});
+
+  final String value;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.78),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -239,6 +309,47 @@ class _HeroBenefit extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class SocialAuthPlaceholders extends StatelessWidget {
+  const SocialAuthPlaceholders({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: Text(
+            'or continue with email',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            OutlinedButton.icon(
+              onPressed: null,
+              icon: const Icon(Icons.g_mobiledata),
+              label: const Text('Continue with Google'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: null,
+              icon: const Icon(Icons.apple),
+              label: const Text('Continue with Apple'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Social sign-in is a visual placeholder until enabled for pilot auth.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
     );
   }
 }

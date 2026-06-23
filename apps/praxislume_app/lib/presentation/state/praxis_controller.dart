@@ -89,14 +89,22 @@ class PraxisController extends StateNotifier<PraxisState> {
   }
 
   Future<void> updateBrandKit({
-    required String primaryColor,
-    required String defaultCta,
+    String? primaryColor,
+    String? secondaryColor,
+    String? accentColor,
+    String? tone,
+    String? defaultCta,
+    String? disclaimer,
   }) async {
     state = await _repository.saveBrandKit(
       currentState: state,
       brandKit: state.brandKit.copyWith(
         primaryColor: primaryColor,
+        secondaryColor: secondaryColor,
+        accentColor: accentColor,
+        tone: tone,
         defaultCta: defaultCta,
+        disclaimer: disclaimer,
       ),
     );
   }
