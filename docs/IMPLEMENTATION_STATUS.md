@@ -8,9 +8,9 @@ PraxisLume is an initialized Git repository with a runnable foundation for v0.1 
 
 - Git repository: initialized in `C:\codex_experiments\PraxisLume`.
 - Git remote: `origin` points to `https://github.com/gchamania/praxislume.git`.
-- Current implementation branch: `codex/pl-ai-s10-s12`.
+- Current implementation branch: `codex/pl-flutter-clean-architecture`.
 - Docs: canonical docs are populated and duplicate `docs/PraxisLume_*.md` files have been removed.
-- Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, Day 2 mockup-inspired visual foundations, redesigned MVP workspace routes, widget tests, and controller tests.
+- Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, clean architecture folders, Day 2 mockup-inspired visual foundations, redesigned MVP workspace routes, widget tests, controller tests, and an architecture boundary test.
 - Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake and OpenAI-compatible provider routing, Supabase-backed generation/quota/compliance stores, and tests.
 - Contracts: `packages/contracts` has shared Zod schemas and tests.
 - Supabase: `supabase` has local config, initial migration, seed data, logo storage policies, and an executable RLS verification script.
@@ -56,9 +56,16 @@ Flutter:
 - `apps/praxislume_app/web/index.html`
 - `apps/praxislume_app/web/manifest.json`
 - `apps/praxislume_app/lib/main.dart`
+- `apps/praxislume_app/lib/praxis_lume.dart`
+- `apps/praxislume_app/lib/application/`
+- `apps/praxislume_app/lib/core/`
+- `apps/praxislume_app/lib/data/`
+- `apps/praxislume_app/lib/domain/`
+- `apps/praxislume_app/lib/presentation/`
 - `apps/praxislume_app/lib/ui/praxis_components.dart`
 - `apps/praxislume_app/lib/ui/praxis_theme.dart`
 - `apps/praxislume_app/test/app_test.dart`
+- `apps/praxislume_app/test/architecture_test.dart`
 - `apps/praxislume_app/test/praxis_controller_test.dart`
 
 API and contracts:
@@ -102,7 +109,7 @@ Known missing or deferred implementation areas:
 
 ## Current Version Target
 
-Implemented target: Foundation v0.0, MVP v0.1 prototype, light v0.2 brand kit foundation, and Sprint 10-12 backend live-AI routing foundation.
+Implemented target: Foundation v0.0, MVP v0.1 prototype, light v0.2 brand kit foundation, Sprint 10-12 backend live-AI routing foundation, and Flutter clean-architecture refactor.
 
 Still enforced:
 
@@ -171,10 +178,13 @@ Still enforced:
 - Added strict JSON response validation, one repair attempt, timeout/error categories, prompt version/hash logging, and returned token metadata capture when providers supply it.
 - Added mocked live-provider tests for success, invalid JSON repair, unrepaired schema failure, timeout, provider error, quota exhaustion before provider calls, patient-data rejection before provider calls, and ENT/Dermatology 30-day campaign quality fixtures.
 - Added `docs/AI_ROUTING.md` documenting direct provider, LiteLLM Proxy, and Vercel AI Gateway routing via `OPENAI_COMPATIBLE_BASE_URL`.
+- Refactored the Flutter app out of monolithic `main.dart` into `core`, `domain`, `application`, `data`, `presentation`, and `ui` layers while preserving the existing v0.1/light v0.2 routes and behavior.
+- Added `apps/praxislume_app/lib/praxis_lume.dart` as a barrel export for app modules and tests.
+- Added a Flutter architecture test that keeps `main.dart` bootstrap-only and verifies the expected app layers exist.
 
 ## In Progress
 
-- No active feature implementation after Sprint 10-12 and the pilot demo script pass. Next work should be production/staging deployment setup and optional live-provider smoke with real staging secrets.
+- No active feature implementation after the Flutter clean-architecture pass. Next work should be integration/PR hygiene for `codex/pl-flutter-clean-architecture`, production/staging deployment setup, and optional live-provider smoke with real staging secrets.
 - Full screenshot comparison remains manual because the in-app browser screenshot API previously timed out against Flutter CanvasKit.
 
 ## Blocked
@@ -185,7 +195,7 @@ Still enforced:
 ## Next Recommended Codex Agents
 
 1. Integration/PR agent
-   - Merge or PR the sprint branches in order from `codex/pl-integration-baseline` through `codex/pl-ai-s10-s12`.
+   - Merge or PR `codex/pl-flutter-clean-architecture` into `surgmuster`.
    - Keep `surgmuster` as the target branch unless the repository strategy changes.
 
 2. Deployment setup agent
@@ -196,6 +206,19 @@ Still enforced:
    - Keep fake provider as default and keep all provider keys server-only.
 
 ## Verification Results
+
+Current Flutter clean-architecture verification on `codex/pl-flutter-clean-architecture`:
+
+- Rebased `codex/pl-flutter-clean-architecture` onto `origin/surgmuster` after resolving a status-doc conflict between the pilot demo script pass and Sprint 10-12 AI routing notes.
+- `npm.cmd run docs:check` exited 0.
+- `npm.cmd run lint` exited 0.
+- `npm.cmd run typecheck` exited 0.
+- `npm.cmd test` exited 0 with 6 contract tests and 21 API tests passing.
+- `dart format --output=none --set-exit-if-changed .` in `apps/praxislume_app` exited 0 with 0 files changed.
+- `flutter analyze` in `apps/praxislume_app` exited 0 with no issues.
+- `flutter test` in `apps/praxislume_app` exited 0 with 13 regular tests passing and 1 local Supabase/API smoke test skipped because dart defines were not provided.
+
+Source-of-truth reconciliation: the Flutter clean-architecture pass changes code organization only. It preserves the v0.1 plus light v0.2 product boundary, keeps AI calls backend-gated, keeps deterministic UI output, and adds no Canva-style editor, social publishing, avatar/video generation, CRM workflow, diagnosis workflow, or patient-identifiable generation prompt surface.
 
 Current Sprint 10-12 AI integration verification on `codex/pl-ai-s10-s12`:
 
