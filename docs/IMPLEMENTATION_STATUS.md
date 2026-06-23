@@ -8,7 +8,7 @@ PraxisLume is an initialized Git repository with a runnable foundation for v0.1 
 
 - Git repository: initialized in `C:\codex_experiments\PraxisLume`.
 - Git remote: `origin` points to `https://github.com/gchamania/praxislume.git`.
-- Current implementation branch: `codex/pl-flutter-clean-architecture`.
+- Current implementation branch: `surgmuster`.
 - Docs: canonical docs are populated and duplicate `docs/PraxisLume_*.md` files have been removed.
 - Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, clean architecture folders, Day 2 mockup-inspired visual foundations, redesigned MVP workspace routes, widget tests, controller tests, and an architecture boundary test.
 - Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake and OpenAI-compatible provider routing, Supabase-backed generation/quota/compliance stores, and tests.
@@ -181,10 +181,11 @@ Still enforced:
 - Refactored the Flutter app out of monolithic `main.dart` into `core`, `domain`, `application`, `data`, `presentation`, and `ui` layers while preserving the existing v0.1/light v0.2 routes and behavior.
 - Added `apps/praxislume_app/lib/praxis_lume.dart` as a barrel export for app modules and tests.
 - Added a Flutter architecture test that keeps `main.dart` bootstrap-only and verifies the expected app layers exist.
+- Fast-forward merged `codex/pl-flutter-clean-architecture` into `surgmuster`.
 
 ## In Progress
 
-- No active feature implementation after the Flutter clean-architecture pass. Next work should be integration/PR hygiene for `codex/pl-flutter-clean-architecture`, production/staging deployment setup, and optional live-provider smoke with real staging secrets.
+- No active feature implementation after the Flutter clean-architecture merge. Next work should be production/staging deployment setup and optional live-provider smoke with real staging secrets.
 - Full screenshot comparison remains manual because the in-app browser screenshot API previously timed out against Flutter CanvasKit.
 
 ## Blocked
@@ -194,15 +195,11 @@ Still enforced:
 
 ## Next Recommended Codex Agents
 
-1. Integration/PR agent
-   - Merge or PR `codex/pl-flutter-clean-architecture` into `surgmuster`.
-   - Keep `surgmuster` as the target branch unless the repository strategy changes.
-
-2. Deployment setup agent
+1. Deployment setup agent
    - Prepare staging environment variables and deployment notes for Flutter web, Fastify API, Supabase, and optional OpenAI-compatible routing without committing service-role or provider secrets.
 
-3. Live LLM adapter agent
-   - Add a real provider behind the existing backend adapter.
+2. Live-provider smoke agent
+   - Run an optional live-provider smoke behind the existing OpenAI-compatible backend adapter with real staging secrets supplied outside Git.
    - Keep fake provider as default and keep all provider keys server-only.
 
 ## Verification Results
@@ -210,6 +207,7 @@ Still enforced:
 Current Flutter clean-architecture verification on `codex/pl-flutter-clean-architecture`:
 
 - Rebased `codex/pl-flutter-clean-architecture` onto `origin/surgmuster` after resolving a status-doc conflict between the pilot demo script pass and Sprint 10-12 AI routing notes.
+- Fast-forward merged `codex/pl-flutter-clean-architecture` into `surgmuster` and pushed `surgmuster`.
 - `npm.cmd run docs:check` exited 0.
 - `npm.cmd run lint` exited 0.
 - `npm.cmd run typecheck` exited 0.
