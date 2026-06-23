@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 const _supabaseUrl = String.fromEnvironment('SUPABASE_URL');
 const _supabaseKey = String.fromEnvironment('SUPABASE_ANON_KEY');
+const _apiBaseUrl = String.fromEnvironment('API_BASE_URL');
 const _hasSupabaseConfig = _supabaseUrl.length > 0 && _supabaseKey.length > 0;
 
 void main() {
@@ -38,8 +39,12 @@ void main() {
         await client.auth.signInWithPassword(email: email, password: password);
       }
 
+      final generationClient = _apiBaseUrl.isEmpty
+          ? null
+          : PraxisApiGenerationClient(supabase: client, baseUrl: _apiBaseUrl);
       final controller = PraxisController(
         repository: SupabasePraxisRepository(client),
+        generationClient: generationClient,
       );
       await controller.load();
       expect(controller.state.isAuthenticated, isTrue);
@@ -75,6 +80,17 @@ void main() {
       expect(downloadedLogo, isNotEmpty);
 
       await controller.generateThirtyDayCampaign();
+      if (generationClient != null) {
+        await _verifyBackendGenerationEndpoints(
+          client: client,
+          generationClient: generationClient,
+          clinicId: controller.state.clinic!.id,
+          specialty: controller.state.doctor!.specialty,
+          tone: controller.state.brandKit.tone,
+          ctaPreference: controller.state.brandKit.defaultCta,
+          disclaimer: controller.state.brandKit.disclaimer,
+        );
+      }
 
       final firstItem = controller.state.items.first;
       await controller.updateContentItem(
@@ -85,6 +101,7 @@ void main() {
 
       final reloaded = PraxisController(
         repository: SupabasePraxisRepository(client),
+        generationClient: generationClient,
       );
       await reloaded.load();
 
@@ -132,4 +149,76 @@ void main() {
         : 'Local Supabase dart defines were not provided.',
     timeout: const Timeout(Duration(minutes: 2)),
   );
+}
+
+Future<void> _verifyBackendGenerationEndpoints({
+  required SupabaseClient client,
+  required PraxisGenerationClient generationClient,
+  required String clinicId,
+  required String specialty,
+  required String tone,
+  required String ctaPreference,
+  required String disclaimer,
+}) async {
+  final caption = await generationClient.generateCaption(
+    clinicId: clinicId,
+    title: 'Safe sinus care',
+    specialty: specialty,
+    tone: tone,
+    keyPoints: const ['Explain symptoms safely', 'Encourage consultation'],
+    ctaPreference: ctaPreference,
+    disclaimerPreference: disclaimer,
+  );
+  expect(caption.caption, isNotEmpty);
+
+  final reel = await generationClient.generateReelScript(
+    clinicId: clinicId,
+    title: 'Safe sinus care',
+    specialty: specialty,
+    tone: tone,
+    keyPoints: const ['Explain symptoms safely', 'Encourage consultation'],
+    ctaPreference: ctaPreference,
+  );
+  expect(reel.reelScript, isNotEmpty);
+
+  final rewritten = await generationClient.rewriteTone(
+    clinicId: clinicId,
+    content: 'Explain sinus symptoms in simple language.',
+    tone: tone,
+  );
+  expect(rewritten, isNotEmpty);
+
+  final review = await generationClient.reviewCompliance(
+    clinicId: clinicId,
+    content: 'Guaranteed cure from the best clinic.',
+    contentVersionHash: 'smoke-version-hash',
+  );
+  expect(review.status, isNotEmpty);
+
+  final logs = await client
+      .from('ai_generation_logs')
+      .select('generation_type,status')
+      .eq('clinic_id', clinicId);
+  expect(logs, isA<List>());
+  final generationTypes = {
+    for (final row in logs as List)
+      if (row is Map) row['generation_type'].toString(),
+  };
+  expect(
+    generationTypes,
+    containsAll([
+      'campaign_plan',
+      'content_item_caption',
+      'reel_script',
+      'tone_rewrite',
+    ]),
+  );
+
+  final reviews = await client
+      .from('content_compliance_reviews')
+      .select('status')
+      .eq('clinic_id', clinicId)
+      .eq('reviewed_content_version_hash', 'smoke-version-hash');
+  expect(reviews, isA<List>());
+  expect(reviews as List, isNotEmpty);
 }

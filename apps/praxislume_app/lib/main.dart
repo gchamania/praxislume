@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:math';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'ui/praxis_components.dart';
@@ -35,6 +37,20 @@ class SupabaseSettings {
   final String anonKey;
 
   bool get isConfigured => url.isNotEmpty && anonKey.isNotEmpty;
+}
+
+class ApiSettings {
+  const ApiSettings({required this.baseUrl});
+
+  factory ApiSettings.fromEnvironment() {
+    return const ApiSettings(
+      baseUrl: String.fromEnvironment('API_BASE_URL', defaultValue: ''),
+    );
+  }
+
+  final String baseUrl;
+
+  bool get isConfigured => baseUrl.isNotEmpty;
 }
 
 class ClinicProfile {
@@ -169,6 +185,293 @@ class ContentItem {
       shortCta: shortCta ?? this.shortCta,
       reelScript: reelScript ?? this.reelScript,
     );
+  }
+}
+
+class GeneratedCampaignPlanItem {
+  const GeneratedCampaignPlanItem({
+    required this.dayOffset,
+    required this.title,
+    required this.category,
+    required this.caption,
+    required this.shortCta,
+    required this.reelScript,
+  });
+
+  final int dayOffset;
+  final String title;
+  final String category;
+  final String caption;
+  final String shortCta;
+  final String reelScript;
+}
+
+class CaptionDraft {
+  const CaptionDraft({
+    required this.caption,
+    required this.shortCta,
+    required this.disclaimerNeeded,
+  });
+
+  final String caption;
+  final String shortCta;
+  final bool disclaimerNeeded;
+}
+
+class ReelScriptDraft {
+  const ReelScriptDraft({
+    required this.reelHook,
+    required this.reelScript,
+    required this.shortCta,
+  });
+
+  final String reelHook;
+  final String reelScript;
+  final String shortCta;
+}
+
+class ComplianceReviewDraft {
+  const ComplianceReviewDraft({
+    required this.status,
+    required this.issueCodes,
+    required this.notes,
+    required this.reviewedContentVersionHash,
+    this.saferRewrite,
+  });
+
+  final String status;
+  final List<String> issueCodes;
+  final List<String> notes;
+  final String reviewedContentVersionHash;
+  final String? saferRewrite;
+}
+
+abstract class PraxisGenerationClient {
+  Future<List<GeneratedCampaignPlanItem>> generateCampaignPlan({
+    required PraxisState state,
+    required int durationDays,
+  });
+
+  Future<CaptionDraft> generateCaption({
+    required String clinicId,
+    required String title,
+    required String specialty,
+    required String tone,
+    required List<String> keyPoints,
+    required String ctaPreference,
+    String? disclaimerPreference,
+  });
+
+  Future<ReelScriptDraft> generateReelScript({
+    required String clinicId,
+    required String title,
+    required String specialty,
+    required String tone,
+    required List<String> keyPoints,
+    required String ctaPreference,
+  });
+
+  Future<String> rewriteTone({
+    required String clinicId,
+    required String content,
+    required String tone,
+  });
+
+  Future<ComplianceReviewDraft> reviewCompliance({
+    required String clinicId,
+    required String content,
+    required String contentVersionHash,
+  });
+}
+
+class PraxisApiException implements Exception {
+  const PraxisApiException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+class PraxisApiGenerationClient implements PraxisGenerationClient {
+  PraxisApiGenerationClient({
+    required SupabaseClient supabase,
+    required String baseUrl,
+    http.Client? httpClient,
+  }) : _supabase = supabase,
+       _baseUrl = baseUrl.replaceFirst(RegExp(r'/+$'), ''),
+       _httpClient = httpClient ?? http.Client();
+
+  final SupabaseClient _supabase;
+  final String _baseUrl;
+  final http.Client _httpClient;
+
+  @override
+  Future<List<GeneratedCampaignPlanItem>> generateCampaignPlan({
+    required PraxisState state,
+    required int durationDays,
+  }) async {
+    final clinic = state.clinic;
+    final doctor = state.doctor;
+    if (clinic == null || doctor == null || clinic.id.isEmpty) {
+      throw const PraxisApiException(
+        'Clinic onboarding is required before generation.',
+      );
+    }
+    final data = await _postJson('/v1/generations/campaign-plan', {
+      'clinicId': clinic.id,
+      'idempotencyKey':
+          'campaign-${clinic.id}-$durationDays-${DateTime.now().toUtc().millisecondsSinceEpoch}',
+      'durationDays': durationDays,
+      'specialty': doctor.specialty,
+      'services': clinic.services,
+      'locality': clinic.locality,
+      'goal': 'increase appointment enquiries',
+      'tone': state.brandKit.tone,
+      'ctaPreference': state.brandKit.defaultCta,
+      'disclaimerPreference': state.brandKit.disclaimer,
+    });
+    final items = data['items'];
+    if (items is! List) {
+      throw const PraxisApiException('Campaign plan response was invalid.');
+    }
+    return [
+      for (final item in items)
+        if (item is Map)
+          GeneratedCampaignPlanItem(
+            dayOffset: _readInt(Map<String, dynamic>.from(item), 'dayOffset'),
+            title: _readText(Map<String, dynamic>.from(item), 'title'),
+            category: _readText(Map<String, dynamic>.from(item), 'category'),
+            caption: _readText(Map<String, dynamic>.from(item), 'caption'),
+            shortCta: _readText(Map<String, dynamic>.from(item), 'shortCta'),
+            reelScript: _readText(
+              Map<String, dynamic>.from(item),
+              'reelScript',
+            ),
+          ),
+    ];
+  }
+
+  @override
+  Future<CaptionDraft> generateCaption({
+    required String clinicId,
+    required String title,
+    required String specialty,
+    required String tone,
+    required List<String> keyPoints,
+    required String ctaPreference,
+    String? disclaimerPreference,
+  }) async {
+    final data = await _postJson('/v1/generations/content-item-caption', {
+      'clinicId': clinicId,
+      'title': title,
+      'specialty': specialty,
+      'tone': tone,
+      'keyPoints': keyPoints,
+      'ctaPreference': ctaPreference,
+      if (disclaimerPreference != null)
+        'disclaimerPreference': disclaimerPreference,
+    });
+    return CaptionDraft(
+      caption: _readText(data, 'caption'),
+      shortCta: _readText(data, 'shortCta'),
+      disclaimerNeeded: data['disclaimerNeeded'] == true,
+    );
+  }
+
+  @override
+  Future<ReelScriptDraft> generateReelScript({
+    required String clinicId,
+    required String title,
+    required String specialty,
+    required String tone,
+    required List<String> keyPoints,
+    required String ctaPreference,
+  }) async {
+    final data = await _postJson('/v1/generations/reel-script', {
+      'clinicId': clinicId,
+      'title': title,
+      'specialty': specialty,
+      'tone': tone,
+      'keyPoints': keyPoints,
+      'ctaPreference': ctaPreference,
+    });
+    return ReelScriptDraft(
+      reelHook: _readText(data, 'reelHook'),
+      reelScript: _readText(data, 'reelScript'),
+      shortCta: _readText(data, 'shortCta'),
+    );
+  }
+
+  @override
+  Future<String> rewriteTone({
+    required String clinicId,
+    required String content,
+    required String tone,
+  }) async {
+    final data = await _postJson('/v1/generations/tone-rewrite', {
+      'clinicId': clinicId,
+      'content': content,
+      'tone': tone,
+    });
+    return _readText(data, 'rewrittenContent');
+  }
+
+  @override
+  Future<ComplianceReviewDraft> reviewCompliance({
+    required String clinicId,
+    required String content,
+    required String contentVersionHash,
+  }) async {
+    final data = await _postJson('/v1/compliance/review', {
+      'clinicId': clinicId,
+      'content': content,
+      'contentVersionHash': contentVersionHash,
+    });
+    return ComplianceReviewDraft(
+      status: _readText(data, 'status'),
+      issueCodes: _readStringList(data['issueCodes']),
+      notes: _readStringList(data['notes']),
+      saferRewrite: _nullableText(data, 'saferRewrite'),
+      reviewedContentVersionHash: _readText(data, 'reviewedContentVersionHash'),
+    );
+  }
+
+  Future<Map<String, dynamic>> _postJson(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final token = _supabase.auth.currentSession?.accessToken;
+    if (token == null || token.isEmpty) {
+      throw const PraxisApiException('A Supabase session is required.');
+    }
+    final response = await _httpClient.post(
+      Uri.parse('$_baseUrl$path'),
+      headers: {
+        'authorization': 'Bearer $token',
+        'content-type': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+    final envelope = jsonDecode(response.body);
+    if (envelope is! Map) {
+      throw const PraxisApiException('API response was invalid.');
+    }
+    final parsed = Map<String, dynamic>.from(envelope);
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300 ||
+        parsed['ok'] != true) {
+      final error = parsed['error'];
+      final message = error is Map
+          ? _readText(Map<String, dynamic>.from(error), 'message')
+          : 'Generation request failed.';
+      throw PraxisApiException(message);
+    }
+    final data = parsed['data'];
+    if (data is! Map) {
+      throw const PraxisApiException('API response data was invalid.');
+    }
+    return Map<String, dynamic>.from(data);
   }
 }
 
@@ -825,6 +1128,24 @@ String _readText(Map<String, dynamic> row, String key) {
   return value == null ? '' : value.toString();
 }
 
+int _readInt(Map<String, dynamic> row, String key) {
+  final value = row[key];
+  if (value is int) {
+    return value;
+  }
+  return int.tryParse(_readText(row, key)) ?? 0;
+}
+
+List<String> _readStringList(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+  return [
+    for (final item in value)
+      if (item != null) item.toString(),
+  ];
+}
+
 String? _nullableText(Map<String, dynamic> row, String key) {
   final value = _readText(row, key);
   return value.isEmpty ? null : value;
@@ -929,11 +1250,15 @@ String _newUuid() {
 }
 
 class PraxisController extends StateNotifier<PraxisState> {
-  PraxisController({PraxisRepository? repository})
-    : _repository = repository ?? InMemoryPraxisRepository(),
-      super(PraxisState.initial());
+  PraxisController({
+    PraxisRepository? repository,
+    PraxisGenerationClient? generationClient,
+  }) : _repository = repository ?? InMemoryPraxisRepository(),
+       _generationClient = generationClient,
+       super(PraxisState.initial());
 
   final PraxisRepository _repository;
+  final PraxisGenerationClient? _generationClient;
 
   Future<void> load() async {
     state = await _repository.load();
@@ -972,12 +1297,65 @@ class PraxisController extends StateNotifier<PraxisState> {
   }
 
   Future<void> generateThirtyDayCampaign() async {
+    await generateCampaign(durationDays: 30);
+  }
+
+  Future<void> generateCampaign({required int durationDays}) async {
     final clinic = state.clinic;
     final doctor = state.doctor;
     if (clinic == null || doctor == null) {
       return;
     }
 
+    final campaign = ContentCampaign(
+      id: _newUuid(),
+      title: '$durationDays-day ${doctor.specialty} Growth Campaign',
+      goal: 'increase appointment enquiries',
+      durationDays: durationDays,
+      startDate: DateTime.now(),
+    );
+    final planItems = await _loadCampaignPlan(durationDays);
+    final items = [
+      for (final item in planItems)
+        ContentItem(
+          id: _newUuid(),
+          campaignId: campaign.id,
+          dayOffset: item.dayOffset,
+          title: item.title,
+          category: item.category,
+          status: 'drafted',
+          caption: item.caption,
+          shortCta: item.shortCta,
+          reelScript: item.reelScript,
+        ),
+    ];
+
+    state = await _repository.saveCampaignPackage(
+      currentState: state,
+      campaign: campaign,
+      items: items,
+    );
+  }
+
+  Future<List<GeneratedCampaignPlanItem>> _loadCampaignPlan(
+    int durationDays,
+  ) async {
+    final generationClient = _generationClient;
+    if (generationClient != null) {
+      return generationClient.generateCampaignPlan(
+        state: state,
+        durationDays: durationDays,
+      );
+    }
+    return _deterministicCampaignPlan(durationDays);
+  }
+
+  List<GeneratedCampaignPlanItem> _deterministicCampaignPlan(int durationDays) {
+    final clinic = state.clinic;
+    final doctor = state.doctor;
+    if (clinic == null || doctor == null) {
+      return const [];
+    }
     const categories = [
       'awareness',
       'myth_buster',
@@ -996,24 +1374,14 @@ class PraxisController extends StateNotifier<PraxisState> {
       'clinic_service': 'Clinic service',
       'faq': 'FAQ',
     };
-    final campaign = ContentCampaign(
-      id: _newUuid(),
-      title: '30-day ${doctor.specialty} Growth Campaign',
-      goal: 'increase appointment enquiries',
-      durationDays: 30,
-      startDate: DateTime.now(),
-    );
-    final items = List.generate(30, (index) {
+    return List.generate(durationDays, (index) {
       final category = categories[index % categories.length];
       final service = clinic.services[index % clinic.services.length];
       final label = categoryLabels[category]!;
-      return ContentItem(
-        id: _newUuid(),
-        campaignId: campaign.id,
+      return GeneratedCampaignPlanItem(
         dayOffset: index,
         title: 'Day ${index + 1}: $label for $service',
         category: category,
-        status: 'drafted',
         caption:
             'A patient-friendly $label post about $service for ${clinic.locality}. This is general education and should be reviewed by ${doctor.name}.',
         shortCta: state.brandKit.defaultCta,
@@ -1021,12 +1389,6 @@ class PraxisController extends StateNotifier<PraxisState> {
             'Open with a common concern, explain one safe care tip, and close with ${state.brandKit.defaultCta}.',
       );
     });
-
-    state = await _repository.saveCampaignPackage(
-      currentState: state,
-      campaign: campaign,
-      items: items,
-    );
   }
 
   Future<void> updateContentItem(String id, {required String caption}) async {
@@ -1076,10 +1438,29 @@ final praxisRepositoryProvider = Provider<PraxisRepository>((ref) {
   return InMemoryPraxisRepository();
 });
 
+final praxisGenerationClientProvider = Provider<PraxisGenerationClient?>((ref) {
+  final supabaseSettings = SupabaseSettings.fromEnvironment();
+  final apiSettings = ApiSettings.fromEnvironment();
+  if (!supabaseSettings.isConfigured || !apiSettings.isConfigured) {
+    return null;
+  }
+  try {
+    return PraxisApiGenerationClient(
+      supabase: Supabase.instance.client,
+      baseUrl: apiSettings.baseUrl,
+    );
+  } on StateError {
+    return null;
+  }
+});
+
 final praxisProvider = StateNotifierProvider<PraxisController, PraxisState>((
   ref,
 ) {
-  return PraxisController(repository: ref.watch(praxisRepositoryProvider));
+  return PraxisController(
+    repository: ref.watch(praxisRepositoryProvider),
+    generationClient: ref.watch(praxisGenerationClientProvider),
+  );
 });
 
 class PraxisLumeApp extends StatelessWidget {

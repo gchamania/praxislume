@@ -8,7 +8,7 @@ PraxisLume is an initialized Git repository with a runnable foundation for v0.1 
 
 - Git repository: initialized in `C:\codex_experiments\PraxisLume`.
 - Git remote: `origin` points to `https://github.com/gchamania/praxislume.git`.
-- Current implementation branch: `codex/pl-live-brand-logo-storage`.
+- Current implementation branch: `codex/pl-flutter-api-generation`.
 - Docs: canonical docs are populated and duplicate `docs/PraxisLume_*.md` files have been removed.
 - Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, Day 2 mockup-inspired visual foundations, redesigned MVP workspace routes, widget tests, and controller tests.
 - Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake provider, Supabase-backed generation/quota/compliance stores, and tests.
@@ -146,6 +146,10 @@ Still enforced:
 - Added live Flutter logo upload on the Brand Settings screen using the `clinic-logos` Supabase Storage bucket and controlled `<clinic_id>/logo.<extension>` paths.
 - Saved uploaded logo paths into `brand_kits.logo_path` and render private logos in brand settings/preview through short-lived signed URLs.
 - Expanded the local Supabase smoke to verify owner logo upload/download, reloaded logo path persistence, and cross-clinic logo download denial.
+- Added a Flutter API generation client configured by `API_BASE_URL` that sends the current Supabase access token to protected Fastify endpoints.
+- Wired campaign generation through the backend API when Supabase and `API_BASE_URL` are configured, while preserving deterministic local generation for demo/no-API builds.
+- Added Flutter client methods for campaign plan, caption, reel script, tone rewrite, and compliance review endpoints.
+- Expanded the local Supabase smoke to call all protected API generation/compliance routes and verify `ai_generation_logs` plus `content_compliance_reviews` persistence.
 - Added API generation store adapters for daily usage reservation, quota exhaustion, patient-data rejection logging, provider success/failure logging, and Supabase `ai_generation_logs` persistence.
 - Added API compliance review store adapters that persist review metadata to `content_compliance_reviews` without raw reviewed content.
 - Added Supabase Auth JWT verification for non-test protected API routes, with injectable test verification.
@@ -160,7 +164,7 @@ Still enforced:
 
 ## In Progress
 
-- Sprint 8: backend-gated Flutter generation and compliance calls using the Supabase JWT.
+- Sprint 9: pilot release QA and final readiness report.
 - Full screenshot comparison remains manual because the in-app browser screenshot API previously timed out against Flutter CanvasKit.
 
 ## Blocked
@@ -170,17 +174,32 @@ Still enforced:
 
 ## Next Recommended Codex Agents
 
-1. Sprint 8 - backend-gated Flutter generation
-   - Add a Flutter API client that sends the Supabase JWT to the Fastify API.
-   - Route campaign, caption, reel script, tone rewrite, and compliance calls through the backend fake-provider path.
-
-2. Sprint 9 - pilot release QA
+1. Sprint 9 - pilot release QA
    - Run auth, onboarding, brand kit, 30-day campaign, compliance, edit/copy/export, persistence, RLS, and build checks.
    - Verify no service-role keys or provider secrets are exposed to Flutter.
 
 ## Verification Results
 
-Current Sprint 7 live brand logo storage verification on `codex/pl-live-brand-logo-storage`:
+Current Sprint 8 backend-gated Flutter generation verification on `codex/pl-flutter-api-generation`:
+
+- `flutter pub add http` in `apps/praxislume_app` exited 0 and promoted the existing HTTP client package to a direct dependency.
+- `dart format --set-exit-if-changed .` in `apps/praxislume_app` exited 0 after formatting was applied to the API client changes.
+- `flutter analyze` in `apps/praxislume_app` exited 0 with no issues.
+- `flutter test` in `apps/praxislume_app` exited 0 with 12 regular tests passing and 1 local Supabase/API smoke test skipped because dart defines were not provided.
+- `npx.cmd supabase db reset` at repo root exited 0 and reapplied the current migration and seed.
+- Local Fastify API `/ready` returned `{ ok: true, data: { status: "ready", provider: "fake" } }` on `http://127.0.0.1:8787`.
+- `flutter test test/supabase_repository_smoke_test.dart --dart-define=SUPABASE_URL=http://127.0.0.1:54321 --dart-define=SUPABASE_ANON_KEY=<local publishable key> --dart-define=API_BASE_URL=http://127.0.0.1:8787` in `apps/praxislume_app` exited 0 with 1 backend-gated local smoke test passing.
+- Backend-gated smoke coverage: created a local Supabase Auth user, saved onboarding/brand/logo data, generated the 30-day campaign through Fastify with the Supabase JWT, called caption, reel script, tone rewrite, and compliance review endpoints, verified `ai_generation_logs` contains `campaign_plan`, `content_item_caption`, `reel_script`, and `tone_rewrite`, verified `content_compliance_reviews` persistence, edited content, reloaded persisted data, and verified cross-clinic logo denial.
+- `flutter build web --dart-define=SUPABASE_URL=http://127.0.0.1:54321 --dart-define=SUPABASE_ANON_KEY=<local publishable key> --dart-define=API_BASE_URL=http://127.0.0.1:8787` in `apps/praxislume_app` exited 0 and built `build\web`; Flutter printed the existing non-fatal icon font warning.
+- Browser load check for `http://127.0.0.1:8086/#/signin` returned title `PraxisLume` and 0 console errors.
+- `npm.cmd run lint` at repo root exited 0.
+- `npm.cmd run typecheck` at repo root exited 0.
+- `npm.cmd test` at repo root exited 0 with 6 contract tests and 11 API tests passing.
+- `npm.cmd run build` at repo root exited 0.
+- `npm.cmd run supabase:test:rls` at repo root exited 0, including logo object isolation checks.
+- Source-of-truth reconciliation: Sprint 8 closes the backend-gated generation gap for the pilot path. Flutter sends only the Supabase JWT to the Fastify API; no provider keys or service-role keys are in Flutter. Generation remains fake-provider/local-pilot safe, every generation route logs through the backend path, patient-identifiable data is still rejected by shared/API guards, and no social publishing, avatar/video, CRM, diagnosis, or Canva-style editor scope was added.
+
+Previous Sprint 7 live brand logo storage verification on `codex/pl-live-brand-logo-storage`:
 
 - `flutter pub add file_picker` in `apps/praxislume_app` exited 0 and added the controlled local file selection dependency.
 - `dart format --set-exit-if-changed .` in `apps/praxislume_app` exited 0 after formatting was applied to the new upload/test code.

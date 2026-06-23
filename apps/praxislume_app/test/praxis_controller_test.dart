@@ -108,6 +108,121 @@ void main() {
     expect(controller.state.campaign?.durationDays, 30);
     expect(controller.state.items, hasLength(30));
   });
+
+  test('uses generation client when one is configured', () async {
+    final repository = RecordingPraxisRepository(
+      initialState: PraxisState.initial().copyWith(
+        isAuthenticated: true,
+        clinic: const ClinicProfile(
+          id: 'clinic-1',
+          name: 'Asha Skin Clinic',
+          locality: 'Aundh',
+          city: 'Pune',
+          services: ['Acne care'],
+          phone: '+91 98765 43210',
+        ),
+        doctor: const DoctorProfile(
+          id: 'doctor-1',
+          name: 'Dr Asha Mehta',
+          qualifications: 'MBBS, MD',
+          specialty: 'Dermatology',
+        ),
+      ),
+    );
+    final generationClient = RecordingGenerationClient();
+    final controller = PraxisController(
+      repository: repository,
+      generationClient: generationClient,
+    );
+
+    await controller.load();
+    await controller.generateThirtyDayCampaign();
+
+    expect(generationClient.campaignPlanCalls, 1);
+    expect(repository.campaignSaveCalls, 1);
+    expect(controller.state.items, hasLength(30));
+    expect(controller.state.items.first.title, 'API plan item 1');
+    expect(controller.state.items.first.caption, 'API caption 1');
+  });
+}
+
+class RecordingGenerationClient implements PraxisGenerationClient {
+  int campaignPlanCalls = 0;
+
+  @override
+  Future<List<GeneratedCampaignPlanItem>> generateCampaignPlan({
+    required PraxisState state,
+    required int durationDays,
+  }) async {
+    campaignPlanCalls += 1;
+    return List.generate(
+      durationDays,
+      (index) => GeneratedCampaignPlanItem(
+        dayOffset: index,
+        title: 'API plan item ${index + 1}',
+        category: 'awareness',
+        caption: 'API caption ${index + 1}',
+        shortCta: state.brandKit.defaultCta,
+        reelScript: 'API reel script ${index + 1}',
+      ),
+    );
+  }
+
+  @override
+  Future<CaptionDraft> generateCaption({
+    required String clinicId,
+    required String title,
+    required String specialty,
+    required String tone,
+    required List<String> keyPoints,
+    required String ctaPreference,
+    String? disclaimerPreference,
+  }) async {
+    return CaptionDraft(
+      caption: 'API caption',
+      shortCta: ctaPreference,
+      disclaimerNeeded: true,
+    );
+  }
+
+  @override
+  Future<ReelScriptDraft> generateReelScript({
+    required String clinicId,
+    required String title,
+    required String specialty,
+    required String tone,
+    required List<String> keyPoints,
+    required String ctaPreference,
+  }) async {
+    return ReelScriptDraft(
+      reelHook: 'API hook',
+      reelScript: 'API reel',
+      shortCta: ctaPreference,
+    );
+  }
+
+  @override
+  Future<String> rewriteTone({
+    required String clinicId,
+    required String content,
+    required String tone,
+  }) async {
+    return 'API rewrite';
+  }
+
+  @override
+  Future<ComplianceReviewDraft> reviewCompliance({
+    required String clinicId,
+    required String content,
+    required String contentVersionHash,
+  }) async {
+    return ComplianceReviewDraft(
+      status: 'flagged',
+      issueCodes: const ['guarantee_claim'],
+      notes: const ['Review claim language.'],
+      reviewedContentVersionHash: contentVersionHash,
+    );
+  }
 }
 
 class RecordingPraxisRepository implements PraxisRepository {
