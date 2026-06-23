@@ -379,7 +379,10 @@ class SupabasePraxisRepository implements PraxisRepository {
             .where((name) => name.isNotEmpty)
             .toList();
     final doctorRow = await _maybeSingle(
-      _client.from('doctor_profiles').select().eq('clinic_id', clinicId),
+      _client
+          .from('doctor_profiles')
+          .select('*, specialties(name)')
+          .eq('clinic_id', clinicId),
     );
     final brandRow = await _maybeSingle(
       _client.from('brand_kits').select().eq('clinic_id', clinicId),
@@ -423,7 +426,7 @@ class SupabasePraxisRepository implements PraxisRepository {
               id: _readText(doctorRow, 'id'),
               name: _readText(doctorRow, 'doctor_name'),
               qualifications: _readText(doctorRow, 'qualifications'),
-              specialty: 'Dermatology',
+              specialty: _doctorSpecialtyFromRow(doctorRow),
             ),
       brandKit: brandRow == null
           ? PraxisState.initial().brandKit
@@ -462,6 +465,7 @@ class SupabasePraxisRepository implements PraxisRepository {
     );
     final clinicId = _readText(clinicRow, 'id');
 
+    final specialtyId = await _specialtyIdFor(specialty);
     final doctorRow = Map<String, dynamic>.from(
       await _client
               .from('doctor_profiles')
@@ -472,6 +476,7 @@ class SupabasePraxisRepository implements PraxisRepository {
                 'user_id': userId,
                 'doctor_name': doctorName,
                 'qualifications': qualifications,
+                'specialty_id': specialtyId,
               }, onConflict: 'clinic_id,user_id')
               .select()
               .single()
@@ -635,6 +640,24 @@ class SupabasePraxisRepository implements PraxisRepository {
     }
     return user.id;
   }
+
+  Future<String?> _specialtyIdFor(String specialty) async {
+    final specialtyName = specialty.trim();
+    if (specialtyName.isEmpty) {
+      return null;
+    }
+    final rows = _asRows(
+      await _client
+          .from('specialties')
+          .select('id')
+          .ilike('name', specialtyName)
+          .limit(1),
+    );
+    if (rows.isEmpty) {
+      return null;
+    }
+    return _nullableText(rows.first, 'id');
+  }
 }
 
 class SessionAwarePraxisRepository implements PraxisRepository {
@@ -762,6 +785,17 @@ BrandKit _brandKitFromRow(Map<String, dynamic> row) {
         : _readText(row, 'disclaimer_text'),
     logoPath: _nullableText(row, 'logo_path'),
   );
+}
+
+String _doctorSpecialtyFromRow(Map<String, dynamic> row) {
+  final specialty = row['specialties'];
+  if (specialty is Map) {
+    final name = _readText(Map<String, dynamic>.from(specialty), 'name');
+    if (name.isNotEmpty) {
+      return name;
+    }
+  }
+  return 'Dermatology';
 }
 
 ContentCampaign _campaignFromRow(Map<String, dynamic> row) {

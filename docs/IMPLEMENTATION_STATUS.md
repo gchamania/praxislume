@@ -8,7 +8,7 @@ PraxisLume is an initialized Git repository with a runnable foundation for v0.1 
 
 - Git repository: initialized in `C:\codex_experiments\PraxisLume`.
 - Git remote: `origin` points to `https://github.com/gchamania/praxislume.git`.
-- Current implementation branch: `codex/pl-integration-baseline`.
+- Current implementation branch: `codex/pl-flutter-supabase-smoke`.
 - Docs: canonical docs are populated and duplicate `docs/PraxisLume_*.md` files have been removed.
 - Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, Day 2 mockup-inspired visual foundations, redesigned MVP workspace routes, widget tests, and controller tests.
 - Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake provider, Supabase-backed generation/quota/compliance stores, and tests.
@@ -140,6 +140,9 @@ Still enforced:
 - Prepared the Day 2 visual QA PR path for `codex/pl-ui-qa-smoke` into `surgmuster`; automatic PR creation is blocked in this environment because the GitHub connector returned a 403.
 - Reconciled the pilot-readiness sprint plan against `docs/SOURCE_OF_TRUTH.md`, `docs/CURRENT_RELEASE.md`, `docs/DECISIONS.md`, and `docs/ARCHITECTURE.md`.
 - Marked Day 2 visual redesign work complete after full Flutter, API, contracts, docs, build, and Supabase RLS checks passed on the integration baseline.
+- Added a Flutter local Supabase smoke test that creates a real local Auth user, persists onboarding, brand kit, generated campaign items, content edits, and verifies reload through the same repository/controller path used by the app.
+- Fixed Flutter Supabase doctor specialty persistence by writing `doctor_profiles.specialty_id` from the seeded `specialties` table and reloading the joined specialty name instead of defaulting every doctor to Dermatology.
+- Verified the Supabase-configured Flutter web build loads in the browser with 0 console errors on `http://127.0.0.1:8086/#/signin`.
 - Added API generation store adapters for daily usage reservation, quota exhaustion, patient-data rejection logging, provider success/failure logging, and Supabase `ai_generation_logs` persistence.
 - Added API compliance review store adapters that persist review metadata to `content_compliance_reviews` without raw reviewed content.
 - Added Supabase Auth JWT verification for non-test protected API routes, with injectable test verification.
@@ -154,7 +157,6 @@ Still enforced:
 
 ## In Progress
 
-- Sprint 6: Flutter local Supabase smoke with a real Auth user.
 - Sprint 7: live Flutter logo upload/read from the `clinic-logos` Supabase Storage bucket.
 - Sprint 8: backend-gated Flutter generation and compliance calls using the Supabase JWT.
 - Full screenshot comparison remains manual because the in-app browser screenshot API previously timed out against Flutter CanvasKit.
@@ -166,26 +168,33 @@ Still enforced:
 
 ## Next Recommended Codex Agents
 
-1. Sprint 6 - Flutter local Supabase smoke
-   - Create a local Supabase Auth user.
-   - Sign in through Flutter with dart defines.
-   - Verify onboarding, brand kit save, campaign generation, and content item edit persist across restart.
-
-2. Sprint 7 - live brand logo storage
+1. Sprint 7 - live brand logo storage
    - Wire brand kit CRUD to Supabase.
    - Add logo upload to the `clinic-logos` bucket using clinic-owned paths.
 
-3. Sprint 8 - backend-gated Flutter generation
+2. Sprint 8 - backend-gated Flutter generation
    - Add a Flutter API client that sends the Supabase JWT to the Fastify API.
    - Route campaign, caption, reel script, tone rewrite, and compliance calls through the backend fake-provider path.
 
-4. Sprint 9 - pilot release QA
+3. Sprint 9 - pilot release QA
    - Run auth, onboarding, brand kit, 30-day campaign, compliance, edit/copy/export, persistence, RLS, and build checks.
    - Verify no service-role keys or provider secrets are exposed to Flutter.
 
 ## Verification Results
 
-Current Sprint 5 integration baseline verification on `codex/pl-integration-baseline`:
+Current Sprint 6 Flutter local Supabase smoke verification on `codex/pl-flutter-supabase-smoke`:
+
+- `npx.cmd supabase db reset` at repo root exited 0 and reapplied `202606220001_initial_mvp_schema.sql` plus `supabase/seed.sql`.
+- `flutter test test/supabase_repository_smoke_test.dart --dart-define=SUPABASE_URL=http://127.0.0.1:54321 --dart-define=SUPABASE_ANON_KEY=<local publishable key>` in `apps/praxislume_app` exited 0 with 1 local Supabase smoke test passing.
+- Smoke coverage: created a real local Supabase Auth user, saved onboarding for an ENT clinic, saved brand kit CTA/color edits, generated a 30-day campaign, edited a content item caption, reloaded state through a fresh controller/repository, and verified clinic/services/doctor specialty/brand kit/campaign/items/edit persistence.
+- `dart format --set-exit-if-changed .` in `apps/praxislume_app` exited 0 after formatting was applied once.
+- `flutter analyze` in `apps/praxislume_app` exited 0 with no issues.
+- `flutter test` in `apps/praxislume_app` exited 0 with 11 regular tests passing and 1 local Supabase smoke test skipped because dart defines were not provided.
+- `flutter build web --dart-define=SUPABASE_URL=http://127.0.0.1:54321 --dart-define=SUPABASE_ANON_KEY=<local publishable key>` in `apps/praxislume_app` exited 0 and built `build\web`; Flutter printed the existing non-fatal icon font warning.
+- Browser load check for `http://127.0.0.1:8086/#/signin` returned title `PraxisLume` and 0 console errors.
+- Source-of-truth reconciliation: Sprint 6 remains inside v0.1 plus light v0.2. It proves real Supabase persistence for the existing MVP workflow, fixes a specialty-aware persistence bug, and does not introduce Canva-style editing, social publishing, avatar/video generation, CRM workflows, diagnosis workflows, or patient-identifiable generation inputs.
+
+Previous Sprint 5 integration baseline verification on `codex/pl-integration-baseline`:
 
 - `npm.cmd run lint` at repo root exited 0.
 - `npm.cmd run typecheck` at repo root exited 0.
