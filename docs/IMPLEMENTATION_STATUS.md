@@ -8,7 +8,7 @@ PraxisLume is an initialized Git repository with a runnable foundation for v0.1 
 
 - Git repository: initialized in `C:\codex_experiments\PraxisLume`.
 - Git remote: `origin` points to `https://github.com/gchamania/praxislume.git`.
-- Current implementation branch: `codex/pl-ui-qa-smoke`.
+- Current implementation branch: `codex/pl-integration-baseline`.
 - Docs: canonical docs are populated and duplicate `docs/PraxisLume_*.md` files have been removed.
 - Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, Day 2 mockup-inspired visual foundations, redesigned MVP workspace routes, widget tests, and controller tests.
 - Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake provider, Supabase-backed generation/quota/compliance stores, and tests.
@@ -136,6 +136,10 @@ Still enforced:
 - Expanded Flutter widget coverage for redesigned auth/onboarding/workspace routes, future placeholders, copy/export, and brand kit save.
 - Added Day 2 Sprint 4 responsive QA coverage for mobile drawer navigation and compact workspace routes.
 - Fixed mobile overflows in onboarding actions, dashboard task controls, generate progress steps, and generated package actions.
+- Created the Day 2 to pilot-readiness integration baseline branch `codex/pl-integration-baseline` from the pushed visual QA branch.
+- Prepared the Day 2 visual QA PR path for `codex/pl-ui-qa-smoke` into `surgmuster`; automatic PR creation is blocked in this environment because the GitHub connector returned a 403.
+- Reconciled the pilot-readiness sprint plan against `docs/SOURCE_OF_TRUTH.md`, `docs/CURRENT_RELEASE.md`, `docs/DECISIONS.md`, and `docs/ARCHITECTURE.md`.
+- Marked Day 2 visual redesign work complete after full Flutter, API, contracts, docs, build, and Supabase RLS checks passed on the integration baseline.
 - Added API generation store adapters for daily usage reservation, quota exhaustion, patient-data rejection logging, provider success/failure logging, and Supabase `ai_generation_logs` persistence.
 - Added API compliance review store adapters that persist review metadata to `content_compliance_reviews` without raw reviewed content.
 - Added Supabase Auth JWT verification for non-test protected API routes, with injectable test verification.
@@ -150,8 +154,9 @@ Still enforced:
 
 ## In Progress
 
-- Flutter Supabase persistence still needs a real local smoke test with a Supabase Auth user.
-- Brand logo upload needs live Supabase Storage wiring from Flutter.
+- Sprint 6: Flutter local Supabase smoke with a real Auth user.
+- Sprint 7: live Flutter logo upload/read from the `clinic-logos` Supabase Storage bucket.
+- Sprint 8: backend-gated Flutter generation and compliance calls using the Supabase JWT.
 - Full screenshot comparison remains manual because the in-app browser screenshot API previously timed out against Flutter CanvasKit.
 
 ## Blocked
@@ -161,22 +166,41 @@ Still enforced:
 
 ## Next Recommended Codex Agents
 
-1. PL-11 hardening - Flutter local Supabase smoke
+1. Sprint 6 - Flutter local Supabase smoke
    - Create a local Supabase Auth user.
    - Sign in through Flutter with dart defines.
    - Verify onboarding, brand kit save, campaign generation, and content item edit persist across restart.
 
-2. PL-20 integration - live brand kit storage
+2. Sprint 7 - live brand logo storage
    - Wire brand kit CRUD to Supabase.
    - Add logo upload to the `clinic-logos` bucket using clinic-owned paths.
 
-3. PL-100 - QA hardening
-   - Add end-to-end smoke testing after Supabase-backed repositories are available.
+3. Sprint 8 - backend-gated Flutter generation
+   - Add a Flutter API client that sends the Supabase JWT to the Fastify API.
+   - Route campaign, caption, reel script, tone rewrite, and compliance calls through the backend fake-provider path.
+
+4. Sprint 9 - pilot release QA
+   - Run auth, onboarding, brand kit, 30-day campaign, compliance, edit/copy/export, persistence, RLS, and build checks.
    - Verify no service-role keys or provider secrets are exposed to Flutter.
 
 ## Verification Results
 
-Current Day 2 Sprint 4 visual QA verification on `codex/pl-ui-qa-smoke`:
+Current Sprint 5 integration baseline verification on `codex/pl-integration-baseline`:
+
+- `npm.cmd run lint` at repo root exited 0.
+- `npm.cmd run typecheck` at repo root exited 0.
+- `npm.cmd test` at repo root exited 0 with 6 contract tests and 11 API tests passing.
+- `npm.cmd run docs:check` at repo root exited 0.
+- `npm.cmd run build` at repo root exited 0.
+- `npm.cmd run supabase:test:rls` at repo root exited 0 after verifying service-role writes plus cross-clinic campaign/logo isolation.
+- `dart format --set-exit-if-changed .` in `apps/praxislume_app` exited 0 with 0 files changed.
+- `flutter analyze` in `apps/praxislume_app` exited 0 with no issues.
+- `flutter test` in `apps/praxislume_app` exited 0 with 11 tests passing.
+- `flutter build web` in `apps/praxislume_app` exited 0 and built `build\web`.
+- Day 2 visual QA PR preparation: head `codex/pl-ui-qa-smoke`, base `surgmuster`, URL `https://github.com/gchamania/praxislume/pull/new/codex/pl-ui-qa-smoke`. Connector PR creation returned GitHub API 403, so no remote PR was created by Codex.
+- Source-of-truth reconciliation: the integration branch preserves the v0.1 plus light v0.2 boundary. It adds no Canva-style editing, social publishing, avatar/video generation, CRM workflows, diagnosis workflows, or patient-identifiable generation inputs. The remaining pilot gaps are real Flutter Supabase smoke, live logo storage, backend-gated generation, and release QA.
+
+Previous Day 2 Sprint 4 visual QA verification on `codex/pl-ui-qa-smoke`:
 
 - `dart format --set-exit-if-changed .` in `apps/praxislume_app` exited 0.
 - `flutter analyze` in `apps/praxislume_app` exited 0 with no issues.
