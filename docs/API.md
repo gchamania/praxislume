@@ -49,6 +49,31 @@ attempt to `ai_generation_logs` through the server-side generation store. The
 API records successful structured output, provider failures, quota exhaustion,
 and patient-data rejections without raw auth tokens or service credentials.
 
+## AI Providers
+
+The default provider is `fake`, which keeps local development deterministic.
+Live AI is enabled per route with the backend-only `openai_compatible` adapter:
+
+- `CAMPAIGN_PLAN_PROVIDER=fake|openai_compatible`
+- `CAPTION_PROVIDER=fake|openai_compatible`
+- `REEL_SCRIPT_PROVIDER=fake|openai_compatible`
+- `TONE_REWRITE_PROVIDER=fake|openai_compatible`
+
+When any route uses `openai_compatible`, the API also requires:
+
+- `OPENAI_COMPATIBLE_BASE_URL`
+- `OPENAI_COMPATIBLE_API_KEY`
+- `OPENAI_COMPATIBLE_CAMPAIGN_MODEL` for campaign planning
+- `OPENAI_COMPATIBLE_COPY_MODEL` for captions, reel scripts, and rewrites
+
+The adapter calls non-streaming `/chat/completions`, requests JSON output,
+validates the provider response with shared Zod schemas, and retries once with
+a repair prompt when JSON parsing or schema validation fails. Provider timeout
+and provider error responses are returned as generic error envelopes.
+
+See `docs/AI_ROUTING.md` for direct provider, LiteLLM Proxy, and Vercel AI
+Gateway routing notes.
+
 Compliance review records metadata to `content_compliance_reviews`, including
 status, issue codes, and risk notes. The raw reviewed content is not persisted
 by the API review store.

@@ -18,7 +18,14 @@ import {
 } from './complianceStore.js';
 import { loadConfig } from './config.js';
 import { sendError, sendOk } from './envelope.js';
-import { FakeProvider } from './fakeProvider.js';
+import {
+  createGenerationProviderRouter,
+  ProviderGenerationError,
+  type GenerationProviderMetadata,
+  type GenerationProviderResult,
+  type GenerationProviderRouter,
+  type GenerationType
+} from './generationProvider.js';
 import {
   InMemoryGenerationStore,
   SupabaseGenerationStore,
@@ -39,7 +46,7 @@ function ensureNoPatientData(input: unknown) {
 
 export function buildApp(options: BuildAppOptions = {}) {
   const config = loadConfig(options.env ?? process.env);
-  const provider = new FakeProvider(config.DEFAULT_DRAFT_MODEL);
+  const provider = createGenerationProviderRouter(config);
   const generationStore =
     options.generationStore ??
     (config.NODE_ENV === 'test'
@@ -73,7 +80,7 @@ export function buildApp(options: BuildAppOptions = {}) {
   });
 
   app.get('/ready', async (request, reply) => {
-    return sendOk(reply, request, { status: 'ready', provider: provider.providerName() });
+    return sendOk(reply, request, { status: 'ready', provider: provider.providerSummary() });
   });
 
   app.post(
@@ -213,12 +220,12 @@ type RunGenerationOptions<TData> = {
   request: Parameters<typeof sendOk>[1];
   reply: Parameters<typeof sendOk>[0];
   generationStore: GenerationStore;
-  provider: FakeProvider;
-  generationType: string;
+  provider: GenerationProviderRouter;
+  generationType: GenerationType;
   input: GenerationInput;
   inputSummary: Record<string, unknown>;
   patientGuard?: ReturnType<typeof ensureNoPatientData>;
-  generate: () => TData;
+  generate: () => Promise<GenerationProviderResult<TData>>;
 };
 
 async function runGeneration<TData>({
@@ -236,14 +243,14 @@ async function runGeneration<TData>({
   const userId = request.auth?.userId ?? 'unknown';
   const requestId = String(request.id);
   const guard = patientGuard ?? ensureNoPatientData(input);
+  const providerInfo = provider.providerInfo(generationType);
 
   if (!guard.ok) {
     await generationStore.recordGeneration({
       clinicId: input.clinicId,
       userId,
       generationType,
-      provider: provider.providerName(),
-      model: provider.modelName(),
+      ...logMetadata(providerInfo),
       status: 'blocked',
       errorCategory: 'patient_data_rejected',
       latencyMs: Date.now() - start,
@@ -272,8 +279,7 @@ async function runGeneration<TData>({
       clinicId: input.clinicId,
       userId,
       generationType,
-      provider: provider.providerName(),
-      model: provider.modelName(),
+      ...logMetadata(providerInfo),
       status: 'blocked',
       errorCategory: 'quota_exceeded',
       latencyMs: Date.now() - start,
@@ -288,29 +294,30 @@ async function runGeneration<TData>({
   }
 
   try {
-    const data = generate();
+    const result = await generate();
     await generationStore.recordGeneration({
       clinicId: input.clinicId,
       userId,
       generationType,
-      provider: provider.providerName(),
-      model: provider.modelName(),
+      ...logMetadata(result),
       status: 'succeeded',
       latencyMs: Date.now() - start,
       requestId,
       inputSummary,
-      structuredOutput: data
+      structuredOutput: result.data
     });
-    return sendOk(reply, request, data);
+    return sendOk(reply, request, result.data);
   } catch (error) {
+    const errorCategory = error instanceof ProviderGenerationError ? error.category : 'provider_error';
+    const failureMetadata =
+      error instanceof ProviderGenerationError && error.metadata ? { ...providerInfo, ...error.metadata } : providerInfo;
     await generationStore.recordGeneration({
       clinicId: input.clinicId,
       userId,
       generationType,
-      provider: provider.providerName(),
-      model: provider.modelName(),
+      ...logMetadata(failureMetadata),
       status: 'failed',
-      errorCategory: 'provider_error',
+      errorCategory,
       latencyMs: Date.now() - start,
       requestId,
       inputSummary: {
@@ -318,6 +325,24 @@ async function runGeneration<TData>({
         errorName: error instanceof Error ? error.name : 'UnknownError'
       }
     });
-    return sendError(reply, request, 502, 'provider_error', 'Generation provider failed');
+    return sendError(
+      reply,
+      request,
+      errorCategory === 'provider_timeout' ? 504 : 502,
+      errorCategory,
+      errorCategory === 'provider_timeout' ? 'Generation provider timed out' : 'Generation provider failed'
+    );
   }
+}
+
+function logMetadata(metadata: GenerationProviderMetadata) {
+  return {
+    provider: metadata.provider,
+    model: metadata.model,
+    promptVersion: metadata.promptVersion,
+    promptHash: metadata.promptHash,
+    promptTokens: metadata.promptTokens,
+    completionTokens: metadata.completionTokens,
+    estimatedCost: metadata.estimatedCost
+  };
 }

@@ -35,6 +35,10 @@ Copy `services/api/.env.example` to `services/api/.env` for API development.
 
 All values in example files are fake. Do not commit real secrets.
 
+Keep provider keys and the Supabase service-role key server-only. The root
+`.env.example` is for Flutter/public app settings; live AI configuration
+belongs only in `services/api/.env` or deployment secrets.
+
 ## Supabase
 
 The repo pins the Supabase CLI as a root dev dependency. Prefer the local CLI:
@@ -68,6 +72,40 @@ flutter run -d chrome --dart-define=SUPABASE_URL=http://127.0.0.1:54321 --dart-d
 Get the local anon key from `npx.cmd supabase status`. Use only the anon key in Flutter. The service-role key remains server-only.
 
 When no Supabase session exists, the app's demo account path uses the in-memory repository. After signing in with Supabase email/password, onboarding, brand kit edits, campaign generation, and content item edits use Supabase tables under RLS.
+
+## Optional Live AI
+
+Local development defaults to the fake provider:
+
+```env
+AI_PROVIDER=fake
+CAMPAIGN_PLAN_PROVIDER=fake
+CAPTION_PROVIDER=fake
+REEL_SCRIPT_PROVIDER=fake
+TONE_REWRITE_PROVIDER=fake
+```
+
+To test live AI through the backend, set route-specific providers in
+`services/api/.env`:
+
+```env
+CAMPAIGN_PLAN_PROVIDER=openai_compatible
+OPENAI_COMPATIBLE_BASE_URL=https://api.openai.com/v1
+OPENAI_COMPATIBLE_API_KEY=<server-only-provider-key>
+OPENAI_COMPATIBLE_CAMPAIGN_MODEL=<campaign-model>
+```
+
+For caption, reel script, and tone rewrite routes also set:
+
+```env
+CAPTION_PROVIDER=openai_compatible
+REEL_SCRIPT_PROVIDER=openai_compatible
+TONE_REWRITE_PROVIDER=openai_compatible
+OPENAI_COMPATIBLE_COPY_MODEL=<copy-model>
+```
+
+`OPENAI_COMPATIBLE_BASE_URL` can point at a direct provider API, LiteLLM Proxy,
+or Vercel AI Gateway. See `docs/AI_ROUTING.md`.
 
 ## Verification
 

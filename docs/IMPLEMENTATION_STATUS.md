@@ -8,10 +8,10 @@ PraxisLume is an initialized Git repository with a runnable foundation for v0.1 
 
 - Git repository: initialized in `C:\codex_experiments\PraxisLume`.
 - Git remote: `origin` points to `https://github.com/gchamania/praxislume.git`.
-- Current implementation branch: `codex/pl-pilot-release-qa`.
+- Current implementation branch: `codex/pl-ai-s10-s12`.
 - Docs: canonical docs are populated and duplicate `docs/PraxisLume_*.md` files have been removed.
 - Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, Day 2 mockup-inspired visual foundations, redesigned MVP workspace routes, widget tests, and controller tests.
-- Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake provider, Supabase-backed generation/quota/compliance stores, and tests.
+- Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake and OpenAI-compatible provider routing, Supabase-backed generation/quota/compliance stores, and tests.
 - Contracts: `packages/contracts` has shared Zod schemas and tests.
 - Supabase: `supabase` has local config, initial migration, seed data, logo storage policies, and an executable RLS verification script.
 - Supabase CLI: pinned as a root npm dev dependency; use `npx.cmd supabase ...` or the root npm scripts on Windows.
@@ -29,6 +29,7 @@ Canonical docs:
 - `docs/SETUP.md`
 - `docs/DATABASE.md`
 - `docs/API.md`
+- `docs/AI_ROUTING.md`
 - `docs/RELEASE_TEST_PLAN_v0_1_v0_2.md`
 - `docs/PILOT_DEMO_SCRIPT.md`
 - `docs/IMPLEMENTATION_STATUS.md`
@@ -71,6 +72,7 @@ API and contracts:
 - `services/api/src/config.ts`
 - `services/api/src/envelope.ts`
 - `services/api/src/fakeProvider.ts`
+- `services/api/src/generationProvider.ts`
 - `services/api/src/generationLog.ts`
 - `services/api/src/index.ts`
 - `services/api/tests/app.test.ts`
@@ -95,12 +97,12 @@ Known missing or deferred implementation areas:
 - Flutter native mobile runner folders such as `android/` and `ios/` have not been generated yet; current runner support is web.
 - Flutter still uses an in-memory repository for demo mode and tests when no Supabase session exists.
 - API Supabase persistence has adapter coverage and has passed a real local smoke test with Supabase Auth JWTs and the service-role key.
-- Real LLM providers are deferred behind the existing fake-provider adapter.
+- Real LLM provider credentials, staging secrets, and optional live smoke are not configured in the repository. The backend now supports OpenAI-compatible routing, while fake remains the default local provider.
 - Production deployment, monitoring, and staging secrets are not configured.
 
 ## Current Version Target
 
-Implemented target: Foundation v0.0, MVP v0.1 prototype, and light v0.2 brand kit foundation.
+Implemented target: Foundation v0.0, MVP v0.1 prototype, light v0.2 brand kit foundation, and Sprint 10-12 backend live-AI routing foundation.
 
 Still enforced:
 
@@ -109,6 +111,7 @@ Still enforced:
 - AI calls go through backend API contracts; Flutter does not contain provider keys.
 - Patient-identifiable generation input is rejected by shared/API guards.
 - Visual output remains deterministic; v0.2 includes a brand preview, not a design canvas.
+- Live AI remains backend-only and route-gated; fake generation stays available for deterministic local/pilot smoke.
 
 ## Completed
 
@@ -164,10 +167,14 @@ Still enforced:
 - Updated the shared patient-data guard to ignore operational metadata such as `clinicId` and `idempotencyKey` while still rejecting patient-identifiable request content.
 - Ran a PL-13 local API smoke with a real Supabase Auth user/JWT, RLS clinic insert, API generation, blocked patient-data generation, compliance review, and Supabase row verification.
 - Added CI workflow for Node and Flutter checks.
+- Added route-specific OpenAI-compatible provider support for campaign plans, captions, reel scripts, and tone rewrites.
+- Added strict JSON response validation, one repair attempt, timeout/error categories, prompt version/hash logging, and returned token metadata capture when providers supply it.
+- Added mocked live-provider tests for success, invalid JSON repair, unrepaired schema failure, timeout, provider error, quota exhaustion before provider calls, patient-data rejection before provider calls, and ENT/Dermatology 30-day campaign quality fixtures.
+- Added `docs/AI_ROUTING.md` documenting direct provider, LiteLLM Proxy, and Vercel AI Gateway routing via `OPENAI_COMPATIBLE_BASE_URL`.
 
 ## In Progress
 
-- No active feature implementation after Sprint 9. Next work should be production/staging deployment setup and, when ready, a real LLM provider adapter behind server-only environment variables.
+- No active feature implementation after Sprint 10-12 and the pilot demo script pass. Next work should be production/staging deployment setup and optional live-provider smoke with real staging secrets.
 - Full screenshot comparison remains manual because the in-app browser screenshot API previously timed out against Flutter CanvasKit.
 
 ## Blocked
@@ -178,17 +185,36 @@ Still enforced:
 ## Next Recommended Codex Agents
 
 1. Integration/PR agent
-   - Merge or PR the sprint branches in order from `codex/pl-integration-baseline` through `codex/pl-pilot-release-qa`.
+   - Merge or PR the sprint branches in order from `codex/pl-integration-baseline` through `codex/pl-ai-s10-s12`.
    - Keep `surgmuster` as the target branch unless the repository strategy changes.
 
 2. Deployment setup agent
-   - Prepare staging environment variables and deployment notes for Flutter web, Fastify API, and Supabase without committing service-role or provider secrets.
+   - Prepare staging environment variables and deployment notes for Flutter web, Fastify API, Supabase, and optional OpenAI-compatible routing without committing service-role or provider secrets.
 
 3. Live LLM adapter agent
    - Add a real provider behind the existing backend adapter.
    - Keep fake provider as default and keep all provider keys server-only.
 
 ## Verification Results
+
+Current Sprint 10-12 AI integration verification on `codex/pl-ai-s10-s12`:
+
+- TDD red check: `npm.cmd run test:api -- --run tests/app.test.ts` initially failed because live provider envs still routed to the fake provider.
+- `npm.cmd run test:api -- --run tests/app.test.ts` exited 0 with 21 API tests passing after implementation.
+- `npm.cmd run docs:check` exited 0.
+- `npm.cmd test` exited 0 with 6 contract tests and 21 API tests passing.
+- `npm.cmd run lint` exited 0.
+- `npm.cmd run typecheck` exited 0.
+- `npm.cmd run build` exited 0.
+- `npm.cmd run supabase:test:rls` exited 0.
+- `dart format --set-exit-if-changed .` in `apps/praxislume_app` exited 0 with 0 files changed.
+- `flutter analyze` in `apps/praxislume_app` exited 0 with no issues.
+- `flutter test` in `apps/praxislume_app` exited 0 with 12 regular tests passing and 1 local Supabase/API smoke test skipped because dart defines were not provided.
+- `flutter build web` in `apps/praxislume_app` exited 0 and built `build\web`; Flutter printed the existing non-fatal icon font warning.
+- Flutter secret scan `rg -n "SUPABASE_SERVICE_ROLE_KEY|service_role|sb_secret_|sk-[A-Za-z0-9]|AIza|OPENAI_API_KEY|ANTHROPIC_API_KEY" apps\praxislume_app` returned no matches.
+- Optional live-provider smoke was not run because no real OpenAI-compatible provider key/model was configured in this repository.
+
+Source-of-truth reconciliation: Sprint 10-12 remains aligned with `docs/SOURCE_OF_TRUTH.md`. PraxisLume still uses Flutter, Supabase, Fastify, contracts, and deterministic UI output. Live AI is backend-only and route-gated; Flutter receives no provider keys or service-role keys. Patient-identifiable input is rejected before provider calls. The work adds no Canva-style editor, social publishing, avatar/video generation, CRM, diagnosis workflow, or AI image/voice/video cost surface.
 
 Current Sprint 9 pilot release QA verification on `codex/pl-pilot-release-qa`:
 
@@ -221,7 +247,7 @@ PraxisLume now has a credible local doctor-pilot demo path for v0.1 plus light v
 Remaining pilot gaps:
 
 - Production/staging deployment, monitoring, and real environment secret management are not configured.
-- Real LLM providers remain deferred behind the existing fake-provider adapter.
+- Optional live-provider smoke with real staging credentials is still pending.
 - Browser screenshot capture remains manual because automated screenshots previously timed out against Flutter CanvasKit.
 - The current app runner is Flutter web; native mobile runner folders remain ungenerated.
 

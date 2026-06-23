@@ -92,6 +92,8 @@ export const captionGenerationRequestSchema = z.object({
   clinicId: uuidSchema,
   title: z.string().trim().min(2).max(140),
   specialty: z.string().trim().min(2).max(120),
+  services: serviceListSchema.optional(),
+  locality: z.string().trim().min(2).max(120).optional(),
   tone: generationToneSchema,
   keyPoints: z.array(z.string().trim().min(1).max(180)).min(1).max(5),
   ctaPreference: z.string().trim().min(2).max(180),
@@ -108,9 +110,12 @@ export const reelScriptRequestSchema = z.object({
   clinicId: uuidSchema,
   title: z.string().trim().min(2).max(140),
   specialty: z.string().trim().min(2).max(120),
+  services: serviceListSchema.optional(),
+  locality: z.string().trim().min(2).max(120).optional(),
   tone: generationToneSchema,
   keyPoints: z.array(z.string().trim().min(1).max(180)).min(1).max(5),
-  ctaPreference: z.string().trim().min(2).max(180)
+  ctaPreference: z.string().trim().min(2).max(180),
+  disclaimerPreference: z.string().trim().min(2).max(240).optional()
 });
 
 export const reelScriptResponseSchema = z.object({
@@ -122,7 +127,12 @@ export const reelScriptResponseSchema = z.object({
 export const toneRewriteRequestSchema = z.object({
   clinicId: uuidSchema,
   content: z.string().trim().min(2).max(2200),
-  tone: generationToneSchema
+  tone: generationToneSchema,
+  specialty: z.string().trim().min(2).max(120).optional(),
+  services: serviceListSchema.optional(),
+  locality: z.string().trim().min(2).max(120).optional(),
+  ctaPreference: z.string().trim().min(2).max(180).optional(),
+  disclaimerPreference: z.string().trim().min(2).max(240).optional()
 });
 
 export const toneRewriteResponseSchema = z.object({

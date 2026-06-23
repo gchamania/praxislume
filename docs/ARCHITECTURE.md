@@ -38,12 +38,12 @@ Generation flow:
 3. Reject obvious patient-identifiable input.
 4. Enforce quota and idempotency where relevant.
 5. Call the provider-agnostic LLM adapter.
-6. Validate structured output.
+6. Validate structured output and repair invalid provider JSON once when safe.
 7. Run rules-first compliance review.
 8. Write `ai_generation_logs` and related output records.
 9. Return a safe response envelope.
 
-The initial provider is fake and deterministic for tests and local development. Real providers must be added behind the adapter without changing route handlers or Flutter screens.
+The default provider is fake and deterministic for tests and local development. The backend also supports an OpenAI-compatible provider behind route-specific env flags for campaign plans, captions, reel scripts, and tone rewrites. Direct providers, LiteLLM Proxy, or Vercel AI Gateway can be selected through `OPENAI_COMPATIBLE_BASE_URL` without changing Flutter screens.
 
 ## Supabase Data Model
 

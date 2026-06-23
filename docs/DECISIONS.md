@@ -55,3 +55,11 @@ Status: accepted
 Decision: generation inputs use approved clinic context only and reject obvious patient-identifiable data before provider calls.
 
 Reason: PraxisLume is a patient-education marketing tool, not a patient case analysis product.
+
+## ADR-008: OpenAI-Compatible Routing First
+
+Status: accepted
+
+Decision: add live AI through PraxisLume's own backend provider adapter using an OpenAI-compatible `/chat/completions` interface. LiteLLM Proxy and Vercel AI Gateway remain compatible routing options, not required local infrastructure.
+
+Reason: the adapter gives route-specific model control, prompt logging, schema repair, and cost observability now, while keeping future provider routing an environment-only change.

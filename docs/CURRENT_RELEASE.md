@@ -13,7 +13,7 @@ Pilot promise:
 Build the repo foundation without complete product features:
 
 - Flutter app shell with routes, design tokens, placeholder data, and baseline tests.
-- Fastify API with health, readiness, config validation, logging, auth middleware interface, contracts, fake provider, and tests.
+- Fastify API with health, readiness, config validation, logging, auth middleware interface, contracts, fake provider, OpenAI-compatible provider adapter, and tests.
 - Supabase config, migrations, seed data, RLS, and verification SQL.
 - Shared Zod contracts.
 - CI, setup docs, and environment examples.
@@ -72,5 +72,6 @@ Before pilot release:
 - Cross-clinic RLS checks must pass.
 - No provider secrets or service-role keys may appear in Flutter.
 - Every generation route must validate inputs and write an AI generation log.
+- Live provider calls must remain backend-only and configurable by server env.
 - Patient-identifiable generation input must be rejected.
 - QA report must cover auth, onboarding, campaign generation, compliance, copy/export, brand kit, and storage isolation.
