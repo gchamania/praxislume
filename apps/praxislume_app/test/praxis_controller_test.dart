@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:praxislume_app/main.dart';
 
@@ -164,6 +166,21 @@ class RecordingPraxisRepository implements PraxisRepository {
   }) async {
     brandSaveCalls += 1;
     storedState = currentState.copyWith(brandKit: brandKit);
+    return storedState;
+  }
+
+  @override
+  Future<PraxisState> saveBrandLogo({
+    required PraxisState currentState,
+    required Uint8List bytes,
+    required String fileExtension,
+    required String contentType,
+  }) async {
+    storedState = currentState.copyWith(
+      brandKit: currentState.brandKit.copyWith(
+        logoPath: 'clinic-1/logo.$fileExtension',
+      ),
+    );
     return storedState;
   }
 

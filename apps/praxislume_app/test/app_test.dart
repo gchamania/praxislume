@@ -117,6 +117,9 @@ void main() {
   testWidgets('saves brand kit and shows deterministic preview', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(const PraxisLumeApp());
     await _completeDemoOnboarding(tester);
 
@@ -130,7 +133,6 @@ void main() {
       find.byKey(const Key('ctaField')),
       'Book a skin consultation',
     );
-    await tester.ensureVisible(find.text('Save brand kit'));
     await tester.tap(find.text('Save brand kit'));
     await tester.pump(const Duration(milliseconds: 200));
 

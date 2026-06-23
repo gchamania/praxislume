@@ -1,5 +1,5 @@
 import 'dart:math';
-
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -245,6 +245,13 @@ abstract class PraxisRepository {
     required BrandKit brandKit,
   });
 
+  Future<PraxisState> saveBrandLogo({
+    required PraxisState currentState,
+    required Uint8List bytes,
+    required String fileExtension,
+    required String contentType,
+  });
+
   Future<PraxisState> saveCampaignPackage({
     required PraxisState currentState,
     required ContentCampaign campaign,
@@ -309,6 +316,23 @@ class InMemoryPraxisRepository implements PraxisRepository {
     required BrandKit brandKit,
   }) async {
     _state = currentState.copyWith(brandKit: brandKit);
+    return _state;
+  }
+
+  @override
+  Future<PraxisState> saveBrandLogo({
+    required PraxisState currentState,
+    required Uint8List bytes,
+    required String fileExtension,
+    required String contentType,
+  }) async {
+    final clinicId = currentState.clinic?.id;
+    final path = clinicId == null || clinicId.isEmpty
+        ? 'demo/logo.$fileExtension'
+        : '$clinicId/logo.$fileExtension';
+    _state = currentState.copyWith(
+      brandKit: currentState.brandKit.copyWith(logoPath: path),
+    );
     return _state;
   }
 
@@ -552,6 +576,32 @@ class SupabasePraxisRepository implements PraxisRepository {
   }
 
   @override
+  Future<PraxisState> saveBrandLogo({
+    required PraxisState currentState,
+    required Uint8List bytes,
+    required String fileExtension,
+    required String contentType,
+  }) async {
+    final clinic = currentState.clinic;
+    if (clinic == null || clinic.id.isEmpty) {
+      return currentState;
+    }
+    final extension = _normalizeLogoExtension(fileExtension);
+    final path = '${clinic.id}/logo.$extension';
+    await _client.storage
+        .from('clinic-logos')
+        .uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(contentType: contentType, upsert: true),
+        );
+    return saveBrandKit(
+      currentState: currentState,
+      brandKit: currentState.brandKit.copyWith(logoPath: path),
+    );
+  }
+
+  @override
   Future<PraxisState> saveCampaignPackage({
     required PraxisState currentState,
     required ContentCampaign campaign,
@@ -711,6 +761,21 @@ class SessionAwarePraxisRepository implements PraxisRepository {
   }
 
   @override
+  Future<PraxisState> saveBrandLogo({
+    required PraxisState currentState,
+    required Uint8List bytes,
+    required String fileExtension,
+    required String contentType,
+  }) {
+    return _activeRepository.saveBrandLogo(
+      currentState: currentState,
+      bytes: bytes,
+      fileExtension: fileExtension,
+      contentType: contentType,
+    );
+  }
+
+  @override
   Future<PraxisState> saveCampaignPackage({
     required PraxisState currentState,
     required ContentCampaign campaign,
@@ -828,6 +893,28 @@ String _dateOnly(DateTime date) {
   final month = date.month.toString().padLeft(2, '0');
   final day = date.day.toString().padLeft(2, '0');
   return '$year-$month-$day';
+}
+
+String _normalizeLogoExtension(String extension) {
+  final normalized = extension.toLowerCase().replaceAll('.', '').trim();
+  if (normalized == 'jpeg') {
+    return 'jpg';
+  }
+  const allowed = {'png', 'jpg', 'webp', 'svg'};
+  return allowed.contains(normalized) ? normalized : 'png';
+}
+
+String _logoContentType(String extension) {
+  switch (_normalizeLogoExtension(extension)) {
+    case 'jpg':
+      return 'image/jpeg';
+    case 'webp':
+      return 'image/webp';
+    case 'svg':
+      return 'image/svg+xml';
+    default:
+      return 'image/png';
+  }
 }
 
 String _newUuid() {
@@ -960,6 +1047,19 @@ class PraxisController extends StateNotifier<PraxisState> {
         primaryColor: primaryColor,
         defaultCta: defaultCta,
       ),
+    );
+  }
+
+  Future<void> uploadBrandLogo({
+    required Uint8List bytes,
+    required String fileExtension,
+    required String contentType,
+  }) async {
+    state = await _repository.saveBrandLogo(
+      currentState: state,
+      bytes: bytes,
+      fileExtension: fileExtension,
+      contentType: contentType,
     );
   }
 }
@@ -3292,6 +3392,7 @@ class BrandKitScreen extends ConsumerStatefulWidget {
 class _BrandKitScreenState extends ConsumerState<BrandKitScreen> {
   late final TextEditingController _primaryColor;
   late final TextEditingController _cta;
+  bool _uploadingLogo = false;
 
   @override
   void initState() {
@@ -3347,6 +3448,51 @@ class _BrandKitScreenState extends ConsumerState<BrandKitScreen> {
                       state.doctor?.specialty ?? 'Specialty',
                     ),
                     _brandInfo('Tone', state.brandKit.tone),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              PraxisCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Logo', style: Theme.of(context).textTheme.titleLarge),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        BrandLogoMark(
+                          logoPath: state.brandKit.logoPath,
+                          size: 58,
+                          iconSize: 28,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            state.brandKit.logoPath ?? 'No logo uploaded',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        OutlinedButton.icon(
+                          key: const Key('logoUploadButton'),
+                          onPressed: _uploadingLogo || state.clinic == null
+                              ? null
+                              : () async => _pickLogo(context),
+                          icon: _uploadingLogo
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.upload_file_outlined),
+                          label: const Text('Upload'),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
@@ -3444,6 +3590,46 @@ class _BrandKitScreenState extends ConsumerState<BrandKitScreen> {
       context,
     ).showSnackBar(const SnackBar(content: Text('Brand kit saved')));
   }
+
+  Future<void> _pickLogo(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _uploadingLogo = true);
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['png', 'jpg', 'jpeg', 'webp'],
+        withData: true,
+      );
+      if (result == null) {
+        return;
+      }
+      final file = result.files.single;
+      final bytes = file.bytes;
+      if (bytes == null) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Logo file could not be read')),
+        );
+        return;
+      }
+      final extension = _normalizeLogoExtension(file.extension ?? '');
+      await ref
+          .read(praxisProvider.notifier)
+          .uploadBrandLogo(
+            bytes: bytes,
+            fileExtension: extension,
+            contentType: _logoContentType(extension),
+          );
+      messenger.showSnackBar(const SnackBar(content: Text('Logo uploaded')));
+    } catch (_) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Logo upload failed')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _uploadingLogo = false);
+      }
+    }
+  }
 }
 
 class BrandPreview extends StatelessWidget {
@@ -3471,10 +3657,12 @@ class BrandPreview extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const CircleAvatar(
+                    BrandLogoMark(
+                      logoPath: state.brandKit.logoPath,
+                      size: 40,
+                      iconSize: 21,
                       backgroundColor: Colors.white,
                       foregroundColor: praxisTealDark,
-                      child: Icon(Icons.local_hospital_outlined),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -3535,6 +3723,76 @@ class BrandPreview extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class BrandLogoMark extends StatelessWidget {
+  const BrandLogoMark({
+    required this.logoPath,
+    required this.size,
+    required this.iconSize,
+    this.backgroundColor = praxisMint,
+    this.foregroundColor = praxisTealDark,
+    super.key,
+  });
+
+  final String? logoPath;
+  final double size;
+  final double iconSize;
+  final Color backgroundColor;
+  final Color foregroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final path = logoPath;
+    if (path == null || path.isEmpty) {
+      return _fallback();
+    }
+    return FutureBuilder<String?>(
+      future: _signedLogoUrl(path),
+      builder: (context, snapshot) {
+        final url = snapshot.data;
+        if (url == null || url.isEmpty) {
+          return _fallback();
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.network(
+            url,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _fallback(),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _fallback() {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Icon(
+        Icons.local_hospital_outlined,
+        color: foregroundColor,
+        size: iconSize,
+      ),
+    );
+  }
+
+  Future<String?> _signedLogoUrl(String path) async {
+    try {
+      return await Supabase.instance.client.storage
+          .from('clinic-logos')
+          .createSignedUrl(path, 300);
+    } catch (_) {
+      return null;
+    }
   }
 }
 

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:praxislume_app/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,7 +26,7 @@ void main() {
   });
 
   test(
-    'persists onboarding, brand kit, campaign, and edited content with local Supabase',
+    'persists onboarding, brand kit, logo, campaign, and edited content with local Supabase',
     () async {
       final client = Supabase.instance.client;
       final password = 'SmokePass123!';
@@ -57,6 +59,21 @@ void main() {
         primaryColor: '#123456',
         defaultCta: 'Book an ENT consult',
       );
+      final logoBytes = base64Decode(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=',
+      );
+      await controller.uploadBrandLogo(
+        bytes: logoBytes,
+        fileExtension: 'png',
+        contentType: 'image/png',
+      );
+      final logoPath = controller.state.brandKit.logoPath;
+      expect(logoPath, '${controller.state.clinic!.id}/logo.png');
+      final downloadedLogo = await client.storage
+          .from('clinic-logos')
+          .download(logoPath!);
+      expect(downloadedLogo, isNotEmpty);
+
       await controller.generateThirtyDayCampaign();
 
       final firstItem = controller.state.items.first;
@@ -80,6 +97,7 @@ void main() {
       expect(reloaded.state.doctor?.specialty, 'ENT');
       expect(reloaded.state.brandKit.primaryColor, '#123456');
       expect(reloaded.state.brandKit.defaultCta, 'Book an ENT consult');
+      expect(reloaded.state.brandKit.logoPath, logoPath);
       expect(reloaded.state.campaign?.durationDays, 30);
       expect(reloaded.state.campaign?.title, '30-day ENT Growth Campaign');
       expect(reloaded.state.items, hasLength(30));
@@ -89,6 +107,25 @@ void main() {
             'Edited smoke caption for reload persistence. General education only.',
       );
       expect(editedItem.status, 'drafted');
+
+      await client.auth.signOut();
+      await client.auth.signUp(
+        email: 'other-$stamp@praxislume.local',
+        password: password,
+      );
+      if (client.auth.currentSession == null) {
+        await client.auth.signInWithPassword(
+          email: 'other-$stamp@praxislume.local',
+          password: password,
+        );
+      }
+      Object? crossClinicDownloadError;
+      try {
+        await client.storage.from('clinic-logos').download(logoPath);
+      } catch (error) {
+        crossClinicDownloadError = error;
+      }
+      expect(crossClinicDownloadError, isNotNull);
     },
     skip: _hasSupabaseConfig
         ? false
