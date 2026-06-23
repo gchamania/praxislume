@@ -30,6 +30,7 @@ Canonical docs:
 - `docs/DATABASE.md`
 - `docs/API.md`
 - `docs/RELEASE_TEST_PLAN_v0_1_v0_2.md`
+- `docs/PILOT_DEMO_SCRIPT.md`
 - `docs/IMPLEMENTATION_STATUS.md`
 
 Foundation:
@@ -151,6 +152,7 @@ Still enforced:
 - Added Flutter client methods for campaign plan, caption, reel script, tone rewrite, and compliance review endpoints.
 - Expanded the local Supabase smoke to call all protected API generation/compliance routes and verify `ai_generation_logs` plus `content_compliance_reviews` persistence.
 - Ran Sprint 9 pilot release QA across docs, Flutter, API/contracts, Supabase RLS, backend-gated local smoke, browser startup, and Flutter secret scanning.
+- Added `docs/PILOT_DEMO_SCRIPT.md`, a Windows-friendly doctor-pilot runbook for local Supabase, Fastify fake provider, Flutter web, onboarding, brand logo upload, backend-gated campaign generation, audit evidence, content edit/copy/export, and reload persistence.
 - Added API generation store adapters for daily usage reservation, quota exhaustion, patient-data rejection logging, provider success/failure logging, and Supabase `ai_generation_logs` persistence.
 - Added API compliance review store adapters that persist review metadata to `content_compliance_reviews` without raw reviewed content.
 - Added Supabase Auth JWT verification for non-test protected API routes, with injectable test verification.
@@ -165,7 +167,7 @@ Still enforced:
 
 ## In Progress
 
-- No active feature implementation after Sprint 9. Next work should be merge/PR hygiene, a guided pilot demo script, and production/staging deployment setup.
+- No active feature implementation after Sprint 9. Next work should be production/staging deployment setup and, when ready, a real LLM provider adapter behind server-only environment variables.
 - Full screenshot comparison remains manual because the in-app browser screenshot API previously timed out against Flutter CanvasKit.
 
 ## Blocked
@@ -179,11 +181,12 @@ Still enforced:
    - Merge or PR the sprint branches in order from `codex/pl-integration-baseline` through `codex/pl-pilot-release-qa`.
    - Keep `surgmuster` as the target branch unless the repository strategy changes.
 
-2. Pilot demo agent
-   - Write a short doctor-pilot demo script using local Supabase, fake provider, onboarding, brand logo, API-gated campaign generation, compliance review evidence, content edit, copy/export, and reload persistence.
-
-3. Deployment setup agent
+2. Deployment setup agent
    - Prepare staging environment variables and deployment notes for Flutter web, Fastify API, and Supabase without committing service-role or provider secrets.
+
+3. Live LLM adapter agent
+   - Add a real provider behind the existing backend adapter.
+   - Keep fake provider as default and keep all provider keys server-only.
 
 ## Verification Results
 
