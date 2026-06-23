@@ -6,6 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'ui/praxis_components.dart';
+import 'ui/praxis_theme.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final settings = SupabaseSettings.fromEnvironment();
@@ -17,12 +20,6 @@ Future<void> main() async {
   }
   runApp(const PraxisLumeApp());
 }
-
-const _clinicalTeal = Color(0xFF0D4D57);
-const _softMint = Color(0xFFA7E1D6);
-const _warmWhite = Color(0xFFFAFAF6);
-const _graphite = Color(0xFF1C1F23);
-const _gold = Color(0xFFF2C15E);
 
 class SupabaseSettings {
   const SupabaseSettings({required this.url, required this.anonKey});
@@ -974,11 +971,19 @@ class _PraxisRouterAppState extends State<_PraxisRouterApp> {
   void initState() {
     super.initState();
     _router = GoRouter(
-      initialLocation: '/sign-in',
+      initialLocation: '/signin',
       routes: [
+        GoRoute(
+          path: '/signin',
+          builder: (context, state) => const SignInScreen(),
+        ),
         GoRoute(
           path: '/sign-in',
           builder: (context, state) => const SignInScreen(),
+        ),
+        GoRoute(
+          path: '/signup',
+          builder: (context, state) => const SignUpScreen(),
         ),
         GoRoute(
           path: '/onboarding',
@@ -989,16 +994,55 @@ class _PraxisRouterAppState extends State<_PraxisRouterApp> {
           builder: (context, state) => const DashboardScreen(),
         ),
         GoRoute(
+          path: '/generate',
+          builder: (context, state) => const GenerateContentScreen(),
+        ),
+        GoRoute(
           path: '/calendar',
           builder: (context, state) => const CalendarScreen(),
+        ),
+        GoRoute(
+          path: '/library',
+          builder: (context, state) => const ContentLibraryScreen(),
         ),
         GoRoute(
           path: '/brand',
           builder: (context, state) => const BrandKitScreen(),
         ),
         GoRoute(
+          path: '/brand-settings',
+          builder: (context, state) => const BrandKitScreen(),
+        ),
+        GoRoute(
           path: '/settings',
           builder: (context, state) => const SettingsScreen(),
+        ),
+        GoRoute(
+          path: '/templates',
+          builder: (context, state) => const PlaceholderFeatureScreen(
+            route: '/templates',
+            title: 'Templates',
+            message: 'Templates are planned after MVP validation.',
+            icon: Icons.dynamic_feed_outlined,
+          ),
+        ),
+        GoRoute(
+          path: '/analytics',
+          builder: (context, state) => const PlaceholderFeatureScreen(
+            route: '/analytics',
+            title: 'Analytics',
+            message: 'Analytics arrive after pilot usage data exists.',
+            icon: Icons.bar_chart_outlined,
+          ),
+        ),
+        GoRoute(
+          path: '/media-studio',
+          builder: (context, state) => const PlaceholderFeatureScreen(
+            route: '/media-studio',
+            title: 'Media Studio',
+            message: 'Media Studio is outside the MVP.',
+            icon: Icons.video_library_outlined,
+          ),
         ),
         GoRoute(
           path: '/content/:id',
@@ -1013,24 +1057,8 @@ class _PraxisRouterAppState extends State<_PraxisRouterApp> {
   Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'PraxisLume',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: _clinicalTeal,
-          primary: _clinicalTeal,
-          secondary: _softMint,
-          surface: _warmWhite,
-        ),
-        scaffoldBackgroundColor: _warmWhite,
-        useMaterial3: true,
-        cardTheme: const CardThemeData(
-          margin: EdgeInsets.symmetric(vertical: 8),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.all(Radius.circular(8)),
-            side: BorderSide(color: Color(0x1F1C1F23)),
-          ),
-        ),
-      ),
+      debugShowCheckedModeBanner: false,
+      theme: buildPraxisTheme(),
       routerConfig: _router,
     );
   }
@@ -1056,75 +1084,84 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 420),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'PraxisLume',
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    color: _clinicalTeal,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text('Sign in to continue'),
-                const SizedBox(height: 24),
-                TextField(
-                  key: const Key('emailField'),
-                  controller: _email,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  key: const Key('passwordField'),
-                  controller: _password,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                FilledButton(
-                  onPressed: () => _authenticate(createAccount: false),
-                  child: const Text('Sign in'),
-                ),
-                const SizedBox(height: 8),
-                OutlinedButton(
-                  onPressed: () => _authenticate(createAccount: true),
-                  child: const Text('Create account'),
-                ),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () async {
-                    await ref.read(praxisProvider.notifier).signInDemo();
-                    if (!context.mounted) {
-                      return;
-                    }
-                    final state = ref.read(praxisProvider);
-                    context.go(
-                      state.onboardingComplete ? '/dashboard' : '/onboarding',
-                    );
-                  },
-                  child: const Text('Use demo account'),
-                ),
-              ],
+    return AuthSplitScaffold(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const PraxisLogo(),
+          const SizedBox(height: 26),
+          const Text(
+            'Your Doctor Growth OS.',
+            style: TextStyle(
+              color: praxisTealDark,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
             ),
           ),
-        ),
+          const SizedBox(height: 16),
+          Text('Welcome back', style: Theme.of(context).textTheme.displaySmall),
+          const SizedBox(height: 8),
+          const Text('Sign in to continue'),
+          const SizedBox(height: 20),
+          TextField(
+            key: const Key('emailField'),
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(
+              labelText: 'Email',
+              prefixIcon: Icon(Icons.mail_outline),
+              hintText: 'Enter your email',
+            ),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            key: const Key('passwordField'),
+            controller: _password,
+            obscureText: true,
+            decoration: const InputDecoration(
+              labelText: 'Password',
+              prefixIcon: Icon(Icons.lock_outline),
+              suffixIcon: Icon(Icons.visibility_off_outlined),
+              hintText: 'Enter your password',
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () {},
+              child: const Text('Forgot password?'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          FilledButton(
+            onPressed: () => _authenticate(createAccount: false),
+            child: const Text('Sign in'),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton(
+            onPressed: () => context.go('/signup'),
+            child: const Text('Create account'),
+          ),
+          const SizedBox(height: 6),
+          TextButton(
+            onPressed: _signInDemo,
+            child: const Text('Use demo account'),
+          ),
+          const SizedBox(height: 16),
+          const SecurityNotice(),
+        ],
       ),
     );
+  }
+
+  Future<void> _signInDemo() async {
+    await ref.read(praxisProvider.notifier).signInDemo();
+    if (!mounted) {
+      return;
+    }
+    final state = ref.read(praxisProvider);
+    context.go(state.onboardingComplete ? '/dashboard' : '/onboarding');
   }
 
   Future<void> _authenticate({required bool createAccount}) async {
@@ -1167,6 +1204,400 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 }
 
+class SignUpScreen extends ConsumerStatefulWidget {
+  const SignUpScreen({super.key});
+
+  @override
+  ConsumerState<SignUpScreen> createState() => _SignUpScreenState();
+}
+
+class _SignUpScreenState extends ConsumerState<SignUpScreen> {
+  final _name = TextEditingController();
+  final _email = TextEditingController();
+  final _phone = TextEditingController();
+  final _password = TextEditingController();
+  final _confirm = TextEditingController();
+  final _clinic = TextEditingController();
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _email.dispose();
+    _phone.dispose();
+    _password.dispose();
+    _confirm.dispose();
+    _clinic.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AuthSplitScaffold(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const PraxisLogo(),
+          const SizedBox(height: 34),
+          Text(
+            'Create your account',
+            style: Theme.of(context).textTheme.displaySmall,
+          ),
+          const SizedBox(height: 8),
+          const Text('Start with the essentials for your clinic workspace.'),
+          const SizedBox(height: 24),
+          _authField(_name, 'Full Name', Icons.person_outline),
+          _authField(_email, 'Email Address', Icons.mail_outline),
+          _authField(_phone, 'Phone Number', Icons.phone_outlined),
+          _authField(_password, 'Password', Icons.lock_outline, obscure: true),
+          _authField(
+            _confirm,
+            'Confirm Password',
+            Icons.lock_outline,
+            obscure: true,
+          ),
+          _authField(
+            _clinic,
+            'Clinic / Practice Name',
+            Icons.local_hospital_outlined,
+          ),
+          const SizedBox(height: 8),
+          const PraxisChip(
+            label: 'Doctor workspace',
+            icon: Icons.medical_services_outlined,
+            color: praxisMint,
+          ),
+          const SizedBox(height: 18),
+          FilledButton(
+            onPressed: () => _authenticate(createAccount: true),
+            child: const Text('Create PraxisLume Account'),
+          ),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () => context.go('/signin'),
+            child: const Text('Already have an account? Sign in'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _authField(
+    TextEditingController controller,
+    String label,
+    IconData icon, {
+    bool obscure = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: TextField(
+        controller: controller,
+        obscureText: obscure,
+        decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
+      ),
+    );
+  }
+
+  Future<void> _authenticate({required bool createAccount}) async {
+    final settings = SupabaseSettings.fromEnvironment();
+    if (!settings.isConfigured) {
+      _showMessage('Supabase is not configured for this build');
+      return;
+    }
+    if (_password.text != _confirm.text) {
+      _showMessage('Passwords do not match');
+      return;
+    }
+    try {
+      await Supabase.instance.client.auth.signUp(
+        email: _email.text.trim(),
+        password: _password.text,
+      );
+      await ref.read(praxisProvider.notifier).load();
+      if (!mounted) {
+        return;
+      }
+      context.go('/onboarding');
+    } on AuthException catch (error) {
+      _showMessage(error.message);
+    } catch (_) {
+      _showMessage('Account creation failed');
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class AuthSplitScaffold extends StatelessWidget {
+  const AuthSplitScaffold({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final wide = MediaQuery.sizeOf(context).width >= 900;
+    return Scaffold(
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1220),
+                child: Container(
+                  height: max(0, constraints.maxHeight - 40),
+                  margin: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: praxisSurface,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: praxisLine),
+                    boxShadow: [
+                      BoxShadow(
+                        color: praxisInk.withValues(alpha: 0.08),
+                        blurRadius: 30,
+                        offset: const Offset(0, 18),
+                      ),
+                    ],
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: wide
+                      ? Row(
+                          children: [
+                            Expanded(
+                              child: SingleChildScrollView(
+                                padding: const EdgeInsets.all(64),
+                                child: child,
+                              ),
+                            ),
+                            const Expanded(child: AuthHeroPanel()),
+                          ],
+                        )
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.all(28),
+                          child: child,
+                        ),
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class AuthHeroPanel extends StatelessWidget {
+  const AuthHeroPanel({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(56),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF06363C), Color(0xFF005A60)],
+        ),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Your Doctor Growth OS.',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 34,
+                height: 1.15,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0,
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              '30 days of branded medical content in 30 minutes.',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0,
+              ),
+            ),
+            const SizedBox(height: 44),
+            PraxisCard(
+              color: Colors.white.withValues(alpha: 0.95),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      PraxisLogo(compact: true),
+                      SizedBox(width: 10),
+                      Text(
+                        'Content Calendar',
+                        style: TextStyle(
+                          color: praxisInk,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: List.generate(
+                      5,
+                      (index) => Expanded(
+                        child: Container(
+                          height: 58,
+                          margin: EdgeInsets.only(right: index == 4 ? 0 : 8),
+                          decoration: BoxDecoration(
+                            color: [
+                              praxisPurple,
+                              praxisMint,
+                              praxisTeal,
+                              praxisLine,
+                              praxisGold,
+                            ][index].withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    height: 120,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: List.generate(
+                        8,
+                        (index) => Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            height: 34 + (index * 9 % 74).toDouble(),
+                            decoration: BoxDecoration(
+                              color: index.isEven
+                                  ? praxisPurple.withValues(alpha: 0.32)
+                                  : praxisTeal.withValues(alpha: 0.28),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 36),
+            const _HeroBenefit(
+              icon: Icons.schedule,
+              title: 'Save 10+ hours every week',
+              text: 'AI-assisted content planning tailored for your clinic.',
+            ),
+            const _HeroBenefit(
+              icon: Icons.verified_user_outlined,
+              title: 'Build trust and authority',
+              text: 'Consistent, accurate and professional content.',
+            ),
+            const _HeroBenefit(
+              icon: Icons.trending_up,
+              title: 'Grow your patient base',
+              text: 'Educational content that supports patient acquisition.',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HeroBenefit extends StatelessWidget {
+  const _HeroBenefit({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: praxisTeal.withValues(alpha: 0.8),
+            foregroundColor: Colors.white,
+            child: Icon(icon),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  text,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.82),
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class SecurityNotice extends StatelessWidget {
+  const SecurityNotice({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return PraxisCard(
+      color: praxisMint,
+      child: Row(
+        children: [
+          const Icon(Icons.shield_outlined, color: praxisTealDark),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              'Your data is safe with us. Never enter patient-identifiable data into generation prompts.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: praxisText,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -1200,63 +1631,169 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Clinic onboarding')),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: FilledButton(
-            onPressed: _submit,
-            child: const Text('Complete onboarding'),
-          ),
-        ),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
+    final compact = MediaQuery.sizeOf(context).width < 980;
+    final form = Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const PraxisChip(label: 'Step 1 of 7', color: praxisMint),
+          const SizedBox(height: 24),
           Text(
             'Doctor and clinic profile',
-            style: Theme.of(context).textTheme.headlineSmall,
+            style: Theme.of(context).textTheme.headlineMedium,
           ),
-          const SizedBox(height: 16),
-          Form(
-            key: _formKey,
+          const SizedBox(height: 8),
+          const Text(
+            'This single MVP step captures the details needed to generate specialty-aware campaigns.',
+          ),
+          const SizedBox(height: 24),
+          PraxisCard(
             child: Column(
               children: [
                 _field(
                   _doctorName,
                   'Doctor name',
                   const Key('doctorNameField'),
+                  icon: Icons.person_outline,
                   requiredMessage: 'Doctor name is required',
                 ),
                 _field(
                   _qualifications,
                   'Qualifications',
                   const Key('qualificationsField'),
+                  icon: Icons.workspace_premium_outlined,
                 ),
                 _field(
                   _specialty,
                   'Specialty',
                   const Key('specialtyField'),
+                  icon: Icons.medical_services_outlined,
                 ),
                 _field(
                   _clinicName,
                   'Clinic name',
                   const Key('clinicNameField'),
+                  icon: Icons.local_hospital_outlined,
                 ),
-                _field(_locality, 'Locality', const Key('localityField')),
-                _field(_city, 'City', const Key('cityField')),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _field(
+                        _locality,
+                        'Locality',
+                        const Key('localityField'),
+                        icon: Icons.place_outlined,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _field(
+                        _city,
+                        'City',
+                        const Key('cityField'),
+                        icon: Icons.location_city_outlined,
+                      ),
+                    ),
+                  ],
+                ),
                 _field(
                   _services,
                   'Clinic services',
                   const Key('servicesField'),
+                  icon: Icons.medical_services_outlined,
+                  helper:
+                      'Separate services with commas, e.g. sinus consultation, ear infection care.',
                 ),
-                _field(_phone, 'Phone or WhatsApp', const Key('phoneField')),
-                const SizedBox(height: 72),
+                _field(
+                  _phone,
+                  'Phone or WhatsApp',
+                  const Key('phoneField'),
+                  icon: Icons.phone_outlined,
+                ),
               ],
             ),
           ),
         ],
+      ),
+    );
+
+    return Scaffold(
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          padding: EdgeInsets.fromLTRB(
+            compact ? 16 : 28,
+            14,
+            compact ? 16 : 28,
+            14,
+          ),
+          decoration: const BoxDecoration(
+            color: praxisSurface,
+            border: Border(top: BorderSide(color: praxisLine)),
+          ),
+          child: Row(
+            children: [
+              OutlinedButton.icon(
+                onPressed: () => context.go('/signin'),
+                icon: const Icon(Icons.arrow_back),
+                label: const Text('Back'),
+              ),
+              const Spacer(),
+              if (!compact) ...[
+                TextButton(onPressed: () {}, child: const Text('Skip for now')),
+                const SizedBox(width: 12),
+              ],
+              FilledButton.icon(
+                onPressed: _submit,
+                iconAlignment: IconAlignment.end,
+                icon: const Icon(Icons.arrow_forward),
+                label: const Text('Complete onboarding'),
+              ),
+            ],
+          ),
+        ),
+      ),
+      body: SafeArea(
+        child: Row(
+          children: [
+            if (!compact) const OnboardingRail(),
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.fromLTRB(
+                  compact ? 20 : 34,
+                  compact ? 20 : 34,
+                  compact ? 20 : 34,
+                  110,
+                ),
+                children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                      onPressed: () => context.go('/signin'),
+                      icon: const Icon(Icons.close),
+                      label: const Text('Exit Onboarding'),
+                    ),
+                  ),
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1120),
+                      child: compact
+                          ? form
+                          : Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(flex: 2, child: form),
+                                const SizedBox(width: 28),
+                                const Expanded(child: OnboardingPreview()),
+                              ],
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1291,16 +1828,19 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     TextEditingController controller,
     String label,
     Key key, {
+    required IconData icon,
     String? requiredMessage,
+    String? helper,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 14),
       child: TextFormField(
         key: key,
         controller: controller,
         decoration: InputDecoration(
           labelText: label,
-          border: const OutlineInputBorder(),
+          helperText: helper,
+          prefixIcon: Icon(icon),
         ),
         validator: (value) {
           if ((value ?? '').trim().isEmpty) {
@@ -1313,37 +1853,145 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
-class _AppScaffold extends StatelessWidget {
-  const _AppScaffold({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
+class OnboardingRail extends StatelessWidget {
+  const OnboardingRail({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        actions: [
-          TextButton(
-            onPressed: () => context.go('/dashboard'),
-            child: const Text('Home'),
+    const steps = [
+      ('Choose Specialty', Icons.medical_services_outlined),
+      ('Clinic Details', Icons.local_hospital_outlined),
+      ('Doctor Profile', Icons.person_outline),
+      ('Brand Identity', Icons.palette_outlined),
+      ('Content Goals', Icons.track_changes_outlined),
+      ('Preferred Platforms', Icons.devices_outlined),
+      ("You're All Set!", Icons.check_circle_outline),
+    ];
+    return Container(
+      width: 270,
+      padding: const EdgeInsets.fromLTRB(28, 30, 20, 24),
+      decoration: const BoxDecoration(
+        color: praxisSurface,
+        border: Border(right: BorderSide(color: praxisLine)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const PraxisLogo(),
+          const SizedBox(height: 70),
+          Text(
+            'Welcome to PraxisLume',
+            style: Theme.of(context).textTheme.titleLarge,
           ),
-          TextButton(
-            onPressed: () => context.go('/calendar'),
-            child: const Text('Calendar'),
-          ),
-          TextButton(
-            onPressed: () => context.go('/brand'),
-            child: const Text('Brand'),
-          ),
-          TextButton(
-            onPressed: () => context.go('/settings'),
-            child: const Text('Settings'),
-          ),
+          const SizedBox(height: 8),
+          const Text('Set up your practice in a few focused steps.'),
+          const SizedBox(height: 28),
+          for (var i = 0; i < steps.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 18),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: i == 0 ? praxisTeal : praxisSurface,
+                    foregroundColor: i == 0 ? Colors.white : praxisText,
+                    child: i == 0
+                        ? const Text(
+                            '1',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          )
+                        : Text('${i + 1}'),
+                  ),
+                  const SizedBox(width: 12),
+                  Icon(steps[i].$2, color: i == 0 ? praxisTeal : praxisMuted),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      steps[i].$1,
+                      style: TextStyle(
+                        color: i == 0 ? praxisTealDark : praxisText,
+                        fontWeight: i == 0 ? FontWeight.w800 : FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          const Spacer(),
+          const SecurityNotice(),
         ],
       ),
-      body: ListView(padding: const EdgeInsets.all(24), children: [child]),
+    );
+  }
+}
+
+class OnboardingPreview extends StatelessWidget {
+  const OnboardingPreview({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        PraxisCard(
+          color: praxisMint.withValues(alpha: 0.7),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.assignment_turned_in_outlined, size: 72),
+              const SizedBox(height: 24),
+              Text(
+                'Why this matters',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 18),
+              const _PreviewReason(
+                icon: Icons.track_changes,
+                text: 'Relevant ideas based on specialty and services.',
+              ),
+              const _PreviewReason(
+                icon: Icons.groups_2_outlined,
+                text: 'Patient-friendly education without diagnosis claims.',
+              ),
+              const _PreviewReason(
+                icon: Icons.trending_up,
+                text: 'A consistent foundation for campaign growth.',
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        PraxisCard(
+          child: Text(
+            'The content ideas are so relevant to my practice. It saves me hours every week.',
+            style: Theme.of(context).textTheme.bodyLarge,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PreviewReason extends StatelessWidget {
+  const _PreviewReason({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: praxisSurface,
+            foregroundColor: praxisTealDark,
+            child: Icon(icon),
+          ),
+          const SizedBox(width: 12),
+          Expanded(child: Text(text)),
+        ],
+      ),
     );
   }
 }
@@ -1354,29 +2002,555 @@ class DashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(praxisProvider);
-    return _AppScaffold(
-      title: 'PraxisLume',
+    final doctorName = state.doctor?.name ?? 'Doctor';
+    return WorkspaceShell(
+      title: 'Good morning, $doctorName',
+      subtitle: "Here's your content and growth overview.",
+      currentRoute: '/dashboard',
+      primaryAction: FilledButton.icon(
+        onPressed: () => context.go('/generate'),
+        icon: const Icon(Icons.add),
+        label: const Text('Create New Content'),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Dashboard', style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 8),
-          Text(state.clinic?.name ?? 'No clinic'),
+          Text(
+            'Practice snapshot',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          if (state.clinic != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              state.clinic!.name,
+              style: const TextStyle(
+                color: praxisTealDark,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+          LayoutBuilder(
+            builder: (context, constraints) => Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                _statBox(
+                  constraints,
+                  StatCard(
+                    icon: Icons.video_camera_back_outlined,
+                    value: '${state.items.length}',
+                    label: 'Content ideas',
+                    delta: 'Ready for review',
+                    tint: praxisPurple,
+                  ),
+                ),
+                _statBox(
+                  constraints,
+                  const StatCard(
+                    icon: Icons.visibility_outlined,
+                    value: '45.8K',
+                    label: 'Mockup reach target',
+                    delta: 'Reference only',
+                    tint: praxisTeal,
+                  ),
+                ),
+                _statBox(
+                  constraints,
+                  StatCard(
+                    icon: Icons.health_and_safety_outlined,
+                    value: state.doctor?.specialty ?? 'Specialty',
+                    label: 'Specialty focus',
+                    tint: praxisGold,
+                  ),
+                ),
+                _statBox(
+                  constraints,
+                  StatCard(
+                    icon: Icons.calendar_month_outlined,
+                    value: '${state.campaign?.durationDays ?? 30}',
+                    label: 'Campaign days',
+                    tint: const Color(0xFF2E79FF),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          _DashboardGrid(state: state),
+        ],
+      ),
+    );
+  }
+}
+
+Widget _statBox(BoxConstraints constraints, Widget child) {
+  final width = constraints.maxWidth;
+  final columns = width >= 1120
+      ? 4
+      : width >= 760
+      ? 2
+      : 1;
+  return SizedBox(
+    width: (width - ((columns - 1) * 16)) / columns,
+    child: child,
+  );
+}
+
+class _DashboardGrid extends StatelessWidget {
+  const _DashboardGrid({required this.state});
+
+  final PraxisState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = state.items.take(4).toList();
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final twoColumns = constraints.maxWidth > 960;
+        final left = Column(
+          children: [
+            PraxisCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Campaign readiness'),
-                  Text('Content ideas: ${state.items.length}'),
-                  Text('Brand tone: ${state.brandKit.tone}'),
+                  Row(
+                    children: [
+                      Text(
+                        "Today's Tasks",
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      const SizedBox(width: 8),
+                      PraxisChip(label: '${items.length}'),
+                      const Spacer(),
+                      OutlinedButton(
+                        onPressed: () => context.go('/calendar'),
+                        child: const Text('View Calendar'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  if (items.isEmpty)
+                    const Text('Generate a campaign to create review tasks.')
+                  else
+                    for (final item in items)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: praxisMint,
+                          child: Icon(
+                            Icons.article_outlined,
+                            color: _statusColor(item.status),
+                          ),
+                        ),
+                        title: Text(item.title),
+                        subtitle: Text(
+                          '${categoryLabel(item.category)} - ${item.status}',
+                        ),
+                        trailing: OutlinedButton(
+                          onPressed: () => context.go('/content/${item.id}'),
+                          child: const Text('Review'),
+                        ),
+                      ),
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+            PraxisCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Performance Overview',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    height: 160,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: List.generate(
+                        12,
+                        (index) => Expanded(
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            height: 38 + ((index * 17) % 104).toDouble(),
+                            decoration: BoxDecoration(
+                              color: index.isEven
+                                  ? praxisPurple.withValues(alpha: 0.25)
+                                  : praxisTeal.withValues(alpha: 0.24),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+        final right = Column(
+          children: [
+            PraxisCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Upcoming Schedule',
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  for (final item in state.items.take(5))
+                    ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: PraxisChip(label: 'Day ${item.dayOffset + 1}'),
+                      title: Text(item.title),
+                      subtitle: Text(categoryLabel(item.category)),
+                    ),
+                  if (state.items.isEmpty)
+                    const Text('No scheduled content yet.'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            PraxisCard(
+              color: praxisPurple.withValues(alpha: 0.06),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  PraxisChip(
+                    label: 'AI Recommendations',
+                    icon: Icons.auto_awesome,
+                  ),
+                  SizedBox(height: 14),
+                  Text('Create more content around high-intent services.'),
+                  SizedBox(height: 8),
+                  Text(
+                    'Keep generated content in review/export mode for the MVP.',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+
+        if (!twoColumns) {
+          return Column(children: [left, const SizedBox(height: 16), right]);
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: 3, child: left),
+            const SizedBox(width: 16),
+            Expanded(flex: 2, child: right),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class GenerateContentScreen extends ConsumerWidget {
+  const GenerateContentScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(praxisProvider);
+    return WorkspaceShell(
+      title: 'Content Conveyor Belt',
+      subtitle: 'Input a topic. Get a safe content package ready for review.',
+      currentRoute: '/generate',
+      primaryAction: FilledButton.icon(
+        onPressed: () async {
+          await ref.read(praxisProvider.notifier).generateThirtyDayCampaign();
+          if (context.mounted) {
+            context.go('/calendar');
+          }
+        },
+        icon: const Icon(Icons.auto_awesome),
+        label: const Text('Generate Content'),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth > 980;
+          final input = _GenerateInputPanel(state: state);
+          final output = _GeneratedPackagePanel(state: state);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              PraxisCard(
+                child: Row(
+                  children: const [
+                    _StepPill(
+                      number: '1',
+                      title: 'Topic',
+                      text: 'Tell us what to create',
+                    ),
+                    Expanded(child: Divider()),
+                    _StepPill(
+                      number: '2',
+                      title: 'Generate',
+                      text: 'Draft the package',
+                    ),
+                    Expanded(child: Divider()),
+                    _StepPill(
+                      number: '3',
+                      title: 'Review',
+                      text: 'Customize and approve',
+                    ),
+                    Expanded(child: Divider()),
+                    _StepPill(
+                      number: '4',
+                      title: 'Export',
+                      text: 'Manual copy only',
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              if (wide)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(width: 410, child: input),
+                    const SizedBox(width: 18),
+                    Expanded(child: output),
+                  ],
+                )
+              else
+                Column(children: [input, const SizedBox(height: 18), output]),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _StepPill extends StatelessWidget {
+  const _StepPill({
+    required this.number,
+    required this.title,
+    required this.text,
+  });
+
+  final String number;
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Flexible(
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: number == '1' ? praxisPurple : praxisMint,
+            foregroundColor: number == '1' ? Colors.white : praxisTealDark,
+            child: Text(
+              number,
+              style: const TextStyle(fontWeight: FontWeight.w900),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: Theme.of(context).textTheme.titleMedium),
+                Text(text, style: Theme.of(context).textTheme.bodySmall),
+              ],
+            ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _GenerateInputPanel extends ConsumerWidget {
+  const _GenerateInputPanel({required this.state});
+
+  final PraxisState state;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return PraxisCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const PraxisChip(
+            label: 'Tell us about your content',
+            icon: Icons.edit,
+          ),
+          const SizedBox(height: 18),
+          _ReadonlySelect(
+            label: 'Specialty',
+            value: state.doctor?.specialty ?? 'ENT',
+            icon: Icons.medical_services_outlined,
+          ),
+          _ReadonlySelect(
+            label: 'Topic / Condition',
+            value: state.clinic?.services.firstOrNull ?? 'Sinus consultation',
+            icon: Icons.topic_outlined,
+          ),
+          const _ReadonlySelect(
+            label: 'Content Type',
+            value: '30-day campaign package',
+            icon: Icons.calendar_month_outlined,
+          ),
+          const _ReadonlySelect(
+            label: 'Audience',
+            value: 'Patients',
+            icon: Icons.groups_2_outlined,
+          ),
+          const SizedBox(height: 10),
+          FilledButton.icon(
+            onPressed: () async {
+              await ref
+                  .read(praxisProvider.notifier)
+                  .generateThirtyDayCampaign();
+              if (context.mounted) {
+                context.go('/calendar');
+              }
+            },
+            icon: const Icon(Icons.auto_awesome),
+            label: const Text('Generate Content'),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Estimated time: instant fake provider for MVP smoke tests.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReadonlySelect extends StatelessWidget {
+  const _ReadonlySelect({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 5),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: praxisSurface,
+              border: Border.all(color: praxisLine),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, color: praxisPurple),
+                const SizedBox(width: 10),
+                Expanded(child: Text(value)),
+                const Icon(Icons.keyboard_arrow_down, color: praxisMuted),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GeneratedPackagePanel extends StatelessWidget {
+  const _GeneratedPackagePanel({required this.state});
+
+  final PraxisState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final sample = state.items.take(3).toList();
+    return PraxisCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const PraxisChip(
+                label: 'Review package',
+                icon: Icons.check_circle,
+              ),
+              const Spacer(),
+              OutlinedButton.icon(
+                onPressed: () => context.go('/calendar'),
+                icon: const Icon(Icons.calendar_month_outlined),
+                label: const Text('Open Calendar'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: const [
+              _PackageTile(
+                icon: Icons.movie_creation_outlined,
+                label: 'Reel Script',
+              ),
+              _PackageTile(icon: Icons.image_outlined, label: 'Thumbnail'),
+              _PackageTile(icon: Icons.notes_outlined, label: 'Caption'),
+              _PackageTile(icon: Icons.tag, label: 'Hashtags'),
+              _PackageTile(icon: Icons.campaign_outlined, label: 'CTA'),
+            ],
+          ),
+          const SizedBox(height: 20),
+          if (sample.isEmpty)
+            const Text('Generate a campaign to fill this package.')
+          else
+            for (var i = 0; i < sample.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ContentMiniCard(item: sample[i], index: i),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PackageTile extends StatelessWidget {
+  const _PackageTile({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 124,
+      child: PraxisCard(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            Icon(icon, color: praxisPurple),
+            const SizedBox(height: 8),
+            Text(label, textAlign: TextAlign.center),
+            const SizedBox(height: 5),
+            const Text(
+              'Ready',
+              style: TextStyle(color: Color(0xFF009E73), fontSize: 12),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1388,40 +2562,479 @@ class CalendarScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(praxisProvider);
-    return _AppScaffold(
-      title: 'Content calendar',
+    return WorkspaceShell(
+      title: 'Calendar',
+      subtitle: 'Plan, review and stay consistent with your content.',
+      currentRoute: '/calendar',
+      primaryAction: FilledButton.icon(
+        onPressed: () => context.go('/generate'),
+        icon: const Icon(Icons.add),
+        label: const Text('Create Content'),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Content calendar',
-            style: Theme.of(context).textTheme.headlineMedium,
-          ),
-          const SizedBox(height: 16),
           FilledButton(
             onPressed: () async =>
                 ref.read(praxisProvider.notifier).generateThirtyDayCampaign(),
             child: const Text('Generate 30-day campaign'),
           ),
-          if (state.campaign != null) ...[
-            const SizedBox(height: 16),
-            Text(
-              state.campaign!.title,
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            Text('Content ideas: ${state.items.length}'),
-            const SizedBox(height: 8),
-            for (final item in state.items.take(9))
-              Card(
-                child: ListTile(
-                  title: Text(item.title),
-                  subtitle: Text('${item.category} - ${item.status}'),
-                  onTap: () => context.go('/content/${item.id}'),
-                ),
-              ),
-          ],
+          const SizedBox(height: 18),
+          if (state.campaign == null)
+            const EmptyCampaignPanel()
+          else
+            CampaignReadyPanel(state: state),
         ],
       ),
+    );
+  }
+}
+
+class EmptyCampaignPanel extends StatelessWidget {
+  const EmptyCampaignPanel({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return PraxisCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'No campaign yet',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Generate a deterministic 30-day MVP campaign to populate your calendar.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class CampaignReadyPanel extends StatelessWidget {
+  const CampaignReadyPanel({required this.state, super.key});
+
+  final PraxisState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          state.campaign!.title,
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 6),
+        Text('Content ideas: ${state.items.length}'),
+        const SizedBox(height: 16),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final wide = constraints.maxWidth > 1050;
+            final calendar = PraxisCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const PraxisChip(
+                        label: 'Calendar View',
+                        icon: Icons.calendar_month_outlined,
+                      ),
+                      const PraxisChip(
+                        label: 'Week View',
+                        color: Color(0xFFF3F0FF),
+                      ),
+                      const PraxisChip(
+                        label: 'List View',
+                        color: Color(0xFFF3F0FF),
+                      ),
+                      OutlinedButton(
+                        onPressed: () {},
+                        child: const Text('All Platforms'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    children: [
+                      for (var i = 0; i < state.items.take(14).length; i++)
+                        SizedBox(
+                          width: 150,
+                          child: CalendarDayCard(
+                            item: state.items[i],
+                            index: i,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+            final summary = CampaignSummaryCard(state: state);
+            if (!wide) {
+              return Column(
+                children: [calendar, const SizedBox(height: 16), summary],
+              );
+            }
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 4, child: calendar),
+                const SizedBox(width: 16),
+                Expanded(child: summary),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class CalendarDayCard extends StatelessWidget {
+  const CalendarDayCard({required this.item, required this.index, super.key});
+
+  final ContentItem item;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => context.go('/content/${item.id}'),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: praxisSurface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: praxisLine),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Day ${item.dayOffset + 1}',
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 4),
+                  PraxisChip(
+                    label: categoryLabel(item.category),
+                    color: _categoryTint(item.category),
+                    foreground: _statusColor(item.status),
+                  ),
+                ],
+              ),
+            ),
+            MedicalThumbnail(
+              title: item.title.replaceFirst(RegExp(r'^Day \d+: '), ''),
+              category: item.category,
+              index: index,
+              aspectRatio: 1,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Text(
+                item.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CampaignSummaryCard extends StatelessWidget {
+  const CampaignSummaryCard({required this.state, super.key});
+
+  final PraxisState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return PraxisCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Campaign Summary',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 16),
+          _summaryRow(
+            Icons.rocket_launch_outlined,
+            'Campaign Goal',
+            state.campaign!.goal,
+          ),
+          _summaryRow(
+            Icons.health_and_safety_outlined,
+            'Specialty Focus',
+            state.doctor?.specialty ?? 'Specialty',
+          ),
+          _summaryRow(
+            Icons.topic_outlined,
+            'Focus Areas',
+            state.clinic?.services.join(', ') ?? 'Services',
+          ),
+          _summaryRow(
+            Icons.calendar_month_outlined,
+            'Start Date',
+            _formatDate(state.campaign!.startDate),
+          ),
+          _summaryRow(
+            Icons.fact_check_outlined,
+            'Posting Frequency',
+            '1 item per day',
+          ),
+          const SizedBox(height: 12),
+          PraxisCard(
+            color: const Color(0xFFFFF8E8),
+            child: Text(
+              'All content remains review/export only. No social publishing is enabled in MVP.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          CircleAvatar(
+            radius: 17,
+            backgroundColor: praxisPurple.withValues(alpha: 0.08),
+            foregroundColor: praxisPurple,
+            child: Icon(icon, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(color: praxisMuted, fontSize: 12),
+                ),
+                Text(
+                  value,
+                  style: const TextStyle(fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ContentLibraryScreen extends ConsumerWidget {
+  const ContentLibraryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(praxisProvider);
+    return WorkspaceShell(
+      title: 'Content Library',
+      subtitle: 'All your content in one place.',
+      currentRoute: '/library',
+      primaryAction: FilledButton.icon(
+        onPressed: () => context.go('/generate'),
+        icon: const Icon(Icons.add),
+        label: const Text('Generate New Content'),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              const PraxisChip(
+                label: 'All Content',
+                color: Color(0xFFF3F0FF),
+                foreground: praxisPurple,
+              ),
+              PraxisChip(
+                label:
+                    'Drafts ${state.items.where((item) => item.status == 'drafted').length}',
+              ),
+              const PraxisChip(
+                label: 'Scheduled 0',
+                color: Color(0xFFFFF2E4),
+                foreground: Color(0xFFB96B00),
+              ),
+              const PraxisChip(label: 'Published 0', color: praxisMint),
+            ],
+          ),
+          const SizedBox(height: 18),
+          if (state.items.isEmpty)
+            const EmptyCampaignPanel()
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth;
+                final columns = width >= 1180
+                    ? 4
+                    : width >= 860
+                    ? 3
+                    : width >= 560
+                    ? 2
+                    : 1;
+                final cardWidth = (width - ((columns - 1) * 16)) / columns;
+                return Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  children: [
+                    for (var i = 0; i < state.items.length; i++)
+                      SizedBox(
+                        width: cardWidth,
+                        child: ContentLibraryCard(
+                          item: state.items[i],
+                          index: i,
+                        ),
+                      ),
+                  ],
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class ContentLibraryCard extends StatelessWidget {
+  const ContentLibraryCard({
+    required this.item,
+    required this.index,
+    super.key,
+  });
+
+  final ContentItem item;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => context.go('/content/${item.id}'),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        decoration: BoxDecoration(
+          color: praxisSurface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: praxisLine),
+          boxShadow: [
+            BoxShadow(
+              color: praxisInk.withValues(alpha: 0.04),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            MedicalThumbnail(
+              title: item.title,
+              category: item.category,
+              index: index,
+            ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                  const SizedBox(height: 8),
+                  PraxisChip(
+                    label: categoryLabel(item.category),
+                    color: _categoryTint(item.category),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.calendar_today_outlined,
+                        size: 16,
+                        color: praxisMuted,
+                      ),
+                      const SizedBox(width: 6),
+                      Text('Day ${item.dayOffset + 1}'),
+                      const Spacer(),
+                      PraxisChip(label: item.status),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ContentMiniCard extends StatelessWidget {
+  const ContentMiniCard({required this.item, required this.index, super.key});
+
+  final ContentItem item;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 110,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: MedicalThumbnail(
+              title: item.title,
+              category: item.category,
+              index: index,
+              aspectRatio: 1.35,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(item.title, style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Text(item.caption, maxLines: 2, overflow: TextOverflow.ellipsis),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -1462,63 +3075,116 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
         .watch(praxisProvider)
         .items
         .firstWhere((candidate) => candidate.id == widget.itemId);
-    return _AppScaffold(
+    return WorkspaceShell(
       title: item.title,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(item.title, style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 12),
-          TextField(
-            key: const Key('captionField'),
-            controller: _caption,
-            maxLines: 5,
-            decoration: const InputDecoration(
-              labelText: 'Caption',
-              border: OutlineInputBorder(),
+      subtitle: 'Review, edit and manually export this content package.',
+      currentRoute: '/library',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth > 900;
+          final editor = PraxisCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Caption', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 12),
+                TextField(
+                  key: const Key('captionField'),
+                  controller: _caption,
+                  maxLines: 8,
+                  decoration: const InputDecoration(
+                    labelText: 'Caption',
+                    alignLabelWithHint: true,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    FilledButton(
+                      onPressed: () async {
+                        await ref
+                            .read(praxisProvider.notifier)
+                            .updateContentItem(item.id, caption: _caption.text);
+                        if (!context.mounted) {
+                          return;
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Content item saved')),
+                        );
+                      },
+                      child: const Text('Save item'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        final updated = ref
+                            .read(praxisProvider)
+                            .items
+                            .firstWhere(
+                              (candidate) => candidate.id == widget.itemId,
+                            );
+                        final package =
+                            'Title: ${updated.title}\nCaption: ${updated.caption}\nCTA: ${updated.shortCta}\nReel script: ${updated.reelScript}';
+                        Clipboard.setData(ClipboardData(text: package));
+                        setState(() => _postPackageCopied = true);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Post package copied')),
+                        );
+                      },
+                      icon: const Icon(Icons.copy),
+                      label: const Text('Copy post package'),
+                    ),
+                  ],
+                ),
+                if (_postPackageCopied) ...[
+                  const SizedBox(height: 12),
+                  const PraxisChip(
+                    label: 'Post package copied',
+                    icon: Icons.check,
+                  ),
+                ],
+              ],
             ),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
+          );
+          final preview = PraxisCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                MedicalThumbnail(
+                  title: item.title,
+                  category: item.category,
+                  index: item.dayOffset,
+                  aspectRatio: 1.15,
+                ),
+                const SizedBox(height: 14),
+                PraxisChip(
+                  label: categoryLabel(item.category),
+                  color: _categoryTint(item.category),
+                ),
+                const SizedBox(height: 12),
+                Text(item.title, style: Theme.of(context).textTheme.titleLarge),
+                const SizedBox(height: 8),
+                Text('CTA: ${item.shortCta}'),
+                const SizedBox(height: 8),
+                Text(item.reelScript),
+              ],
+            ),
+          );
+          if (!wide) {
+            return Column(
+              children: [editor, const SizedBox(height: 16), preview],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              FilledButton(
-                onPressed: () async {
-                  await ref
-                      .read(praxisProvider.notifier)
-                      .updateContentItem(item.id, caption: _caption.text);
-                  if (!context.mounted) {
-                    return;
-                  }
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Content item saved')),
-                  );
-                },
-                child: const Text('Save item'),
-              ),
-              OutlinedButton(
-                onPressed: () {
-                  final updated = ref
-                      .read(praxisProvider)
-                      .items
-                      .firstWhere((candidate) => candidate.id == widget.itemId);
-                  final package =
-                      'Title: ${updated.title}\nCaption: ${updated.caption}\nCTA: ${updated.shortCta}\nReel script: ${updated.reelScript}';
-                  Clipboard.setData(ClipboardData(text: package));
-                  setState(() => _postPackageCopied = true);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Post package copied')),
-                  );
-                },
-                child: const Text('Copy post package'),
-              ),
+              Expanded(child: preview),
+              const SizedBox(width: 16),
+              Expanded(flex: 2, child: editor),
             ],
-          ),
-          if (_postPackageCopied) ...[
-            const SizedBox(height: 12),
-            const Text('Post package copied'),
-          ],
-        ],
+          );
+        },
       ),
     );
   }
@@ -1553,53 +3219,138 @@ class _BrandKitScreenState extends ConsumerState<BrandKitScreen> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(praxisProvider);
-    return _AppScaffold(
-      title: 'Brand kit',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return WorkspaceShell(
+      title: 'Brand Settings',
+      subtitle: 'Customize your identity and keep content consistent.',
+      currentRoute: '/brand',
+      primaryAction: FilledButton.icon(
+        onPressed: () async => _save(context),
+        icon: const Icon(Icons.save_outlined),
+        label: const Text('Save Changes'),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth > 980;
+          final form = Column(
+            children: [
+              PraxisCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Clinic Identity',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 16),
+                    _brandInfo(
+                      'Clinic Name',
+                      state.clinic?.name ?? 'Clinic name',
+                    ),
+                    _brandInfo(
+                      'Doctor Name',
+                      state.doctor?.name ?? 'Doctor name',
+                    ),
+                    _brandInfo(
+                      'Specialty',
+                      state.doctor?.specialty ?? 'Specialty',
+                    ),
+                    _brandInfo('Tone', state.brandKit.tone),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              PraxisCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Content Defaults',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: () async => _save(context),
+                        icon: const Icon(Icons.save_outlined),
+                        label: const Text('Save brand kit'),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      key: const Key('primaryColorField'),
+                      controller: _primaryColor,
+                      decoration: const InputDecoration(
+                        labelText: 'Primary color',
+                        prefixIcon: Icon(Icons.color_lens_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      key: const Key('ctaField'),
+                      controller: _cta,
+                      decoration: const InputDecoration(
+                        labelText: 'Default CTA',
+                        prefixIcon: Icon(Icons.campaign_outlined),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+          final preview = BrandPreview(state: state);
+          if (!wide) {
+            return Column(
+              children: [form, const SizedBox(height: 16), preview],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(flex: 2, child: form),
+              const SizedBox(width: 16),
+              Expanded(child: preview),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _brandInfo(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
         children: [
-          Text('Brand kit', style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 16),
-          TextField(
-            key: const Key('primaryColorField'),
-            controller: _primaryColor,
-            decoration: const InputDecoration(
-              labelText: 'Primary color',
-              border: OutlineInputBorder(),
+          SizedBox(
+            width: 132,
+            child: Text(label, style: const TextStyle(color: praxisMuted)),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            key: const Key('ctaField'),
-            controller: _cta,
-            decoration: const InputDecoration(
-              labelText: 'Default CTA',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: () async {
-              await ref
-                  .read(praxisProvider.notifier)
-                  .updateBrandKit(
-                    primaryColor: _primaryColor.text.trim(),
-                    defaultCta: _cta.text.trim(),
-                  );
-              if (!context.mounted) {
-                return;
-              }
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Brand kit saved')));
-            },
-            child: const Text('Save brand kit'),
-          ),
-          const SizedBox(height: 16),
-          BrandPreview(state: state),
         ],
       ),
     );
+  }
+
+  Future<void> _save(BuildContext context) async {
+    await ref
+        .read(praxisProvider.notifier)
+        .updateBrandKit(
+          primaryColor: _primaryColor.text.trim(),
+          defaultCta: _cta.text.trim(),
+        );
+    if (!context.mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Brand kit saved')));
   }
 }
 
@@ -1610,43 +3361,86 @@ class BrandPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: _softMint.withValues(alpha: 0.28),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              state.clinic?.name ?? 'Clinic name',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(color: _clinicalTeal),
+    final brandColor = parseBrandColor(state.brandKit.primaryColor);
+    return PraxisCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Live Preview', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: brandColor,
+              borderRadius: BorderRadius.circular(8),
             ),
-            const SizedBox(height: 8),
-            Text(state.doctor?.name ?? 'Doctor name'),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: _gold,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                state.brandKit.defaultCta,
-                style: const TextStyle(
-                  color: _graphite,
-                  fontWeight: FontWeight.w700,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const CircleAvatar(
+                      backgroundColor: Colors.white,
+                      foregroundColor: praxisTealDark,
+                      child: Icon(Icons.local_hospital_outlined),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        state.clinic?.name ?? 'Clinic name',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 18,
+                          letterSpacing: 0,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ),
+                const SizedBox(height: 30),
+                Text(
+                  state.items.isEmpty
+                      ? 'Patient Education'
+                      : state.items.first.title.replaceFirst(
+                          RegExp(r'^Day \d+: '),
+                          '',
+                        ),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 32,
+                    height: 1.05,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: praxisGold,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    state.brandKit.defaultCta,
+                    style: const TextStyle(
+                      color: praxisInk,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 30),
+                Text(
+                  state.brandKit.disclaimer,
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.82)),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              state.brandKit.disclaimer,
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1657,22 +3451,202 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return _AppScaffold(
+    final state = ref.watch(praxisProvider);
+    return WorkspaceShell(
       title: 'Settings',
+      subtitle: 'Manage your account, preferences and application settings.',
+      currentRoute: '/settings',
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Settings', style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 12),
-          OutlinedButton(
-            onPressed: () {
-              ref.read(praxisProvider.notifier).signOut();
-              context.go('/sign-in');
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth > 900;
+              final profile = PraxisCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Profile Information',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        const CircleAvatar(
+                          radius: 36,
+                          backgroundColor: praxisMint,
+                          child: Icon(Icons.person, color: praxisTealDark),
+                        ),
+                        const SizedBox(width: 18),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                state.doctor?.name ?? 'Doctor',
+                                style: Theme.of(context).textTheme.titleLarge,
+                              ),
+                              Text(state.doctor?.specialty ?? 'Specialty'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 30),
+                    Text('Clinic: ${state.clinic?.name ?? 'No clinic'}'),
+                    Text('Phone: ${state.clinic?.phone ?? '-'}'),
+                    Text('Language: English (India)'),
+                  ],
+                ),
+              );
+              final preferences = PraxisCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Preferences',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 16),
+                    _settingsRow(
+                      Icons.camera_alt_outlined,
+                      'Default Platform',
+                      'Manual export',
+                    ),
+                    _settingsRow(
+                      Icons.article_outlined,
+                      'Default Content Type',
+                      'Education post',
+                    ),
+                    _settingsRow(
+                      Icons.language_outlined,
+                      'Default Language',
+                      'English (India)',
+                    ),
+                    _settingsRow(
+                      Icons.tune_outlined,
+                      'Default Tone',
+                      state.brandKit.tone,
+                    ),
+                  ],
+                ),
+              );
+              if (!wide) {
+                return Column(
+                  children: [profile, const SizedBox(height: 16), preferences],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: profile),
+                  const SizedBox(width: 16),
+                  Expanded(child: preferences),
+                ],
+              );
             },
-            child: const Text('Sign out'),
+          ),
+          const SizedBox(height: 16),
+          PraxisCard(
+            child: Row(
+              children: [
+                const Icon(Icons.privacy_tip_outlined, color: praxisPurple),
+                const SizedBox(width: 14),
+                const Expanded(
+                  child: Text(
+                    'Data and privacy controls are MVP-safe: no patient-identifiable generation data is requested.',
+                  ),
+                ),
+                OutlinedButton(
+                  onPressed: () {
+                    ref.read(praxisProvider.notifier).signOut();
+                    context.go('/signin');
+                  },
+                  child: const Text('Sign out'),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
+
+  Widget _settingsRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        children: [
+          Icon(icon, color: praxisMuted),
+          const SizedBox(width: 12),
+          Expanded(child: Text(label)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+}
+
+class PlaceholderFeatureScreen extends StatelessWidget {
+  const PlaceholderFeatureScreen({
+    required this.route,
+    required this.title,
+    required this.message,
+    required this.icon,
+    super.key,
+  });
+
+  final String route;
+  final String title;
+  final String message;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return WorkspaceShell(
+      title: title,
+      subtitle: 'Visual placeholder only. This area is intentionally deferred.',
+      currentRoute: route,
+      child: ComingSoonPanel(title: title, message: message, icon: icon),
+    );
+  }
+}
+
+Color _statusColor(String status) {
+  return switch (status) {
+    'posted' => const Color(0xFF009E73),
+    'designed' => praxisPurple,
+    'drafted' => praxisTealDark,
+    _ => praxisMuted,
+  };
+}
+
+Color _categoryTint(String category) {
+  return switch (category) {
+    'myth_buster' => const Color(0xFFFFF2E4),
+    'symptoms' => const Color(0xFFE8F2FF),
+    'procedure_explainer' => const Color(0xFFF3F0FF),
+    'seasonal_health_tip' => const Color(0xFFE9F8EF),
+    'clinic_service' => praxisMint,
+    'faq' => const Color(0xFFFFEDF4),
+    _ => const Color(0xFFF3F0FF),
+  };
+}
+
+String _formatDate(DateTime date) {
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return '${date.day} ${months[date.month - 1]} ${date.year}';
 }

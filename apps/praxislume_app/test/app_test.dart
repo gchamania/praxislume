@@ -9,6 +9,7 @@ void main() {
     expect(find.text('PraxisLume'), findsOneWidget);
     expect(find.text('Sign in to continue'), findsOneWidget);
     expect(find.text('Sign in'), findsWidgets);
+    expect(find.text('Your Doctor Growth OS.'), findsOneWidget);
   });
 
   testWidgets('shows Supabase sign in form and local configuration fallback', (
@@ -38,6 +39,10 @@ void main() {
 
     await tester.tap(find.text('Use demo account'));
     await tester.pumpAndSettle();
+
+    expect(find.text('Step 1 of 7'), findsOneWidget);
+    expect(find.text('Doctor and clinic profile'), findsOneWidget);
+
     await tester.tap(find.text('Complete onboarding'));
     await tester.pumpAndSettle();
 
@@ -93,14 +98,16 @@ void main() {
     expect(find.text('30-day ENT Growth Campaign'), findsOneWidget);
     expect(find.textContaining('Content ideas: 30'), findsOneWidget);
 
-    await tester.tap(find.textContaining('Day 1'));
+    await tester.tap(find.text('Day 1'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byKey(const Key('captionField')),
       'Edited caption for patient education.',
     );
+    await tester.ensureVisible(find.text('Save item'));
     await tester.tap(find.text('Save item'));
     await tester.pump(const Duration(milliseconds: 200));
+    await tester.ensureVisible(find.text('Copy post package'));
     await tester.tap(find.text('Copy post package'));
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -123,11 +130,45 @@ void main() {
       find.byKey(const Key('ctaField')),
       'Book a skin consultation',
     );
+    await tester.ensureVisible(find.text('Save brand kit'));
     await tester.tap(find.text('Save brand kit'));
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('Brand kit saved'), findsOneWidget);
     expect(find.text('Book a skin consultation'), findsWidgets);
+  });
+
+  testWidgets('renders redesigned workspace routes and future placeholders', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const PraxisLumeApp());
+    await _completeDemoOnboarding(tester);
+
+    await tester.tap(find.text('Generate Content'));
+    await tester.pumpAndSettle();
+    expect(find.text('Content Conveyor Belt'), findsOneWidget);
+
+    await tester.tap(find.text('Content Library'));
+    await tester.pumpAndSettle();
+    expect(find.text('All your content in one place.'), findsOneWidget);
+
+    await tester.tap(find.text('Templates'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Templates are planned after MVP validation.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Analytics'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Analytics arrive after pilot usage data exists.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Media Studio'));
+    await tester.pumpAndSettle();
+    expect(find.text('Media Studio is outside the MVP.'), findsOneWidget);
   });
 }
 
@@ -148,16 +189,10 @@ Future<void> _completeDemoOnboarding(
     'MBBS, MD',
   );
   await tester.enterText(find.byKey(const Key('specialtyField')), specialty);
-  await tester.enterText(
-    find.byKey(const Key('clinicNameField')),
-    clinicName,
-  );
+  await tester.enterText(find.byKey(const Key('clinicNameField')), clinicName);
   await tester.enterText(find.byKey(const Key('localityField')), 'Aundh');
   await tester.enterText(find.byKey(const Key('cityField')), 'Pune');
-  await tester.enterText(
-    find.byKey(const Key('servicesField')),
-    services,
-  );
+  await tester.enterText(find.byKey(const Key('servicesField')), services);
   await tester.enterText(
     find.byKey(const Key('phoneField')),
     '+91 98765 43210',
