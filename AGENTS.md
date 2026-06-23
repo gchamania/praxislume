@@ -104,6 +104,7 @@ While editing:
 - Keep UI accessible and usable on narrow screens.
 
 Before finishing:
+- Reconcile the completed pass or sprint against `/docs/SOURCE_OF_TRUTH.md`; explicitly confirm the work still matches the product doctrine and MVP boundary.
 - Run formatters, static analysis, unit tests, and relevant integration tests.
 - Report commands run and their result.
 - Report migrations, new environment variables, and manual setup steps.
