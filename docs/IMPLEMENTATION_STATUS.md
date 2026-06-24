@@ -203,20 +203,23 @@ Still enforced:
 - Expanded Supabase RLS verification to cover generated asset rows and `generated-assets` object isolation.
 - Added Flutter API client/controller/content-detail support for “Generate safe thumbnail,” rendering only backend-returned signed asset URLs and showing an honest disabled state when no backend generation client is configured.
 - Updated server-only env examples and canonical docs for DeepSeek text routing and the conditional image-generation pilot.
+- Ran Day 3 follow-on sprint hygiene for the DeepSeek branch: pushed the branch, attempted draft PR creation, verified local fake-provider Supabase/API smoke, rebuilt Flutter web with local Supabase/API dart defines, and served the built app locally.
 
 ## In Progress
 
-- Visual screenshot comparison remains manual because the in-app browser screenshot API previously timed out against Flutter CanvasKit.
+- Visual browser route comparison remains manual because the in-app browser automation tab crashed while loading the Flutter web build in this pass; the built app itself served successfully over HTTP.
+- Optional live DeepSeek text smoke remains pending until a server-only DeepSeek key is supplied outside Git.
 
 ## Blocked
 
 - No active Supabase migration/RLS blocker after Docker Desktop and the local npm Supabase CLI are available.
 - Local Supabase still depends on Docker Desktop. The first Windows startup can take several minutes while images are pulled and may need a rerun after Docker settles.
+- Automatic GitHub PR creation is blocked in this environment because the GitHub connector returned 403 and the local `gh` CLI is not installed. Manual PR URL: `https://github.com/gchamania/praxislume/pull/new/codex/pl-deepseek-ai-pilot`.
 
 ## Next Recommended Codex Agents
 
-1. Visual QA/browser smoke agent
-   - Run the prototype-parity Flutter web build in browser, smoke the MVP routes, and compare against `stitch_web_layout_prototypes` at desktop and mobile sizes.
+1. Manual PR and merge hygiene agent
+   - Open the manual PR for `codex/pl-deepseek-ai-pilot` into `surgmuster`, confirm the diff includes the intended UI parity plus DeepSeek pilot work, and merge only after review.
 
 2. Deployment setup agent
    - Prepare staging environment variables and deployment notes for Flutter web, Fastify API, Supabase, and optional OpenAI-compatible routing without committing service-role or provider secrets.
@@ -255,8 +258,15 @@ Current Day 3 DeepSeek AI pilot verification on `codex/pl-deepseek-ai-pilot`:
 - Flutter secret scan for provider/service-role key patterns returned no matches; `rg` exited 1 because nothing was found.
 - Optional live DeepSeek smoke was not run because no real server-only DeepSeek key was supplied in this repository.
 - Optional live image smoke was not run because no exact compatible image endpoint/model/key was supplied; `IMAGE_GENERATION_ENABLED` remains false by default.
+- Branch `codex/pl-deepseek-ai-pilot` was pushed to origin at commit `eb60d36`.
+- Draft PR creation through the GitHub connector failed with GitHub API 403, and local `gh` is not installed. Manual PR URL: `https://github.com/gchamania/praxislume/pull/new/codex/pl-deepseek-ai-pilot`.
+- Local Fastify API `/ready` returned ok with provider `fake` on `http://127.0.0.1:8787`.
+- `flutter test test/supabase_repository_smoke_test.dart --dart-define=SUPABASE_URL=<local> --dart-define=SUPABASE_ANON_KEY=<local anon> --dart-define=API_BASE_URL=http://127.0.0.1:8787` exited 0 with 1 backend-gated local Supabase/API smoke test passing.
+- `flutter build web --dart-define=SUPABASE_URL=<local> --dart-define=SUPABASE_ANON_KEY=<local anon> --dart-define=API_BASE_URL=http://127.0.0.1:8787` exited 0 and built `build\web`.
+- Static server for `build\web` responded 200 at `http://127.0.0.1:8088/` with page title `PraxisLume`.
+- In-app browser automation could open a fresh tab, but the tab crashed while loading the Flutter web build. Manual visual route review remains pending; this does not override the passing widget, build, HTTP, API, Supabase, and RLS verification evidence above.
 
-Source-of-truth reconciliation: the Day 3 DeepSeek AI pilot remains aligned with `docs/SOURCE_OF_TRUTH.md`. Text generation stays backend-gated and provider keys remain server-only. The visual asset route is disabled by default, safe-abstract-only, audited, quota-gated, and separate from the MVP core; it does not add a Canva-style editor, social publishing, avatar/video generation, CRM workflow, diagnosis workflow, patient-image workflow, or patient-identifiable prompt fields.
+Source-of-truth reconciliation: the Day 3 DeepSeek AI pilot remains aligned with `docs/SOURCE_OF_TRUTH.md`. Text generation stays backend-gated and provider keys remain server-only. The visual asset route is disabled by default, safe-abstract-only, audited, quota-gated, and separate from the MVP core; it does not add a Canva-style editor, social publishing, avatar/video generation, CRM workflow, diagnosis workflow, patient-image workflow, or patient-identifiable prompt fields. The follow-on smoke used fake provider defaults and local Supabase/API settings only; no provider key or service-role key was added to Flutter.
 
 Current UI/UX prototype parity verification on `codex/pl-ui-prototype-parity`:
 
