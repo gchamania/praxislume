@@ -181,6 +181,62 @@ export const visualAssetGenerationResponseSchema = z.object({
   expiresInSeconds: z.number().int().positive().max(3600)
 });
 
+export const carouselSlideCountSchema = z.union([z.literal(5), z.literal(7)]);
+
+export const carouselVisualStyleSchema = z.enum([
+  'clean_medical_cards',
+  'myth_buster_stack',
+  'service_explainer'
+]);
+
+export const carouselSlideRoleSchema = z.enum(['cover', 'education', 'cta', 'disclaimer']);
+
+export const carouselGenerationRequestSchema = z.object({
+  clinicId: uuidSchema,
+  contentItemId: uuidSchema.optional(),
+  title: z.string().trim().min(2).max(140),
+  specialty: z.string().trim().min(2).max(120),
+  category: contentCategorySchema,
+  tone: generationToneSchema,
+  services: serviceListSchema.optional(),
+  locality: z.string().trim().min(2).max(120).optional(),
+  keyPoints: z.array(z.string().trim().min(1).max(180)).min(1).max(5),
+  ctaPreference: z.string().trim().min(2).max(180),
+  disclaimerPreference: z.string().trim().min(2).max(240),
+  slideCount: carouselSlideCountSchema,
+  brandColors: z.object({
+    primary: hexColorSchema,
+    accent: hexColorSchema
+  }),
+  visualStyle: carouselVisualStyleSchema
+});
+
+export const carouselSlideSchema = z.object({
+  slideNumber: z.number().int().min(1).max(7),
+  role: carouselSlideRoleSchema,
+  headline: z.string().trim().min(1).max(90),
+  body: z.string().trim().min(1).max(260),
+  visualCue: z.string().trim().min(1).max(140)
+});
+
+export const carouselGenerationResponseSchema = z
+  .object({
+    title: z.string().trim().min(1).max(140),
+    slideCount: carouselSlideCountSchema,
+    visualStyle: carouselVisualStyleSchema,
+    disclaimerText: z.string().trim().min(2).max(240),
+    slides: z.array(carouselSlideSchema).min(5).max(7)
+  })
+  .superRefine((value, context) => {
+    if (value.slides.length !== value.slideCount) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['slides'],
+        message: 'slides length must match slideCount'
+      });
+    }
+  });
+
 const patientDataPatterns: Array<{ code: string; pattern: RegExp }> = [
   { code: 'phone_number', pattern: /(?:\+?\d[\s-]?){10,}/i },
   { code: 'medical_record_number', pattern: /\b(?:mrn|medical record|patient id|uhid)\b/i },
@@ -245,3 +301,5 @@ export type ComplianceReviewRequest = z.infer<typeof complianceReviewRequestSche
 export type ComplianceReviewResponse = z.infer<typeof complianceReviewResponseSchema>;
 export type VisualAssetGenerationRequest = z.infer<typeof visualAssetGenerationRequestSchema>;
 export type VisualAssetGenerationResponse = z.infer<typeof visualAssetGenerationResponseSchema>;
+export type CarouselGenerationRequest = z.infer<typeof carouselGenerationRequestSchema>;
+export type CarouselGenerationResponse = z.infer<typeof carouselGenerationResponseSchema>;

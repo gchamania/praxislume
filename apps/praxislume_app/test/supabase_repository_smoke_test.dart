@@ -80,6 +80,18 @@ void main() {
       expect(downloadedLogo, isNotEmpty);
 
       await controller.generateThirtyDayCampaign();
+
+      final firstItem = controller.state.items.first;
+      await controller.updateContentItem(
+        firstItem.id,
+        caption:
+            'Edited smoke caption for reload persistence. General education only.',
+      );
+      final carouselSlides = await controller.generateCarouselForItem(
+        firstItem.id,
+      );
+      expect(carouselSlides, hasLength(5));
+      expect(carouselSlides.first.role, 'cover');
       if (generationClient != null) {
         await _verifyBackendGenerationEndpoints(
           client: client,
@@ -91,13 +103,6 @@ void main() {
           disclaimer: controller.state.brandKit.disclaimer,
         );
       }
-
-      final firstItem = controller.state.items.first;
-      await controller.updateContentItem(
-        firstItem.id,
-        caption:
-            'Edited smoke caption for reload persistence. General education only.',
-      );
 
       final reloaded = PraxisController(
         repository: SupabasePraxisRepository(client),
@@ -123,7 +128,9 @@ void main() {
             item.caption ==
             'Edited smoke caption for reload persistence. General education only.',
       );
-      expect(editedItem.status, 'drafted');
+      expect(editedItem.status, 'designed');
+      expect(editedItem.carouselSlides, hasLength(5));
+      expect(editedItem.carouselSlides.last.role, 'disclaimer');
 
       await client.auth.signOut();
       await client.auth.signUp(
@@ -211,6 +218,7 @@ Future<void> _verifyBackendGenerationEndpoints({
       'content_item_caption',
       'reel_script',
       'tone_rewrite',
+      'carousel_slides',
     ]),
   );
 

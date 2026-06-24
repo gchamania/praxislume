@@ -89,12 +89,14 @@ class SessionAwarePraxisRepository implements PraxisRepository {
   Future<PraxisState> updateContentItem({
     required PraxisState currentState,
     required String id,
-    required String caption,
+    String? caption,
+    List<CarouselSlide>? carouselSlides,
   }) {
     return _activeRepository.updateContentItem(
       currentState: currentState,
       id: id,
       caption: caption,
+      carouselSlides: carouselSlides,
     );
   }
 }

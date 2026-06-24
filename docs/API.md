@@ -42,6 +42,7 @@ Error:
 - `POST /v1/generations/content-item-caption`: drafts or regenerates a caption.
 - `POST /v1/generations/reel-script`: drafts a hook and short reel script.
 - `POST /v1/generations/tone-rewrite`: rewrites content in a selected clinic tone.
+- `POST /v1/generations/carousel-slides`: creates structured v0.3 carousel slide copy for deterministic templates.
 - `POST /v1/generations/visual-asset`: disabled-by-default pilot route for safe abstract content thumbnails.
 - `POST /v1/compliance/review`: runs rules-first compliance review.
 
@@ -59,6 +60,7 @@ Live AI is enabled per route with the backend-only `openai_compatible` adapter:
 - `CAPTION_PROVIDER=fake|openai_compatible`
 - `REEL_SCRIPT_PROVIDER=fake|openai_compatible`
 - `TONE_REWRITE_PROVIDER=fake|openai_compatible`
+- `CAROUSEL_PROVIDER=fake|openai_compatible`
 
 When any route uses `openai_compatible`, the API also requires:
 
@@ -66,6 +68,7 @@ When any route uses `openai_compatible`, the API also requires:
 - `OPENAI_COMPATIBLE_API_KEY`
 - `OPENAI_COMPATIBLE_CAMPAIGN_MODEL` for campaign planning
 - `OPENAI_COMPATIBLE_COPY_MODEL` for captions, reel scripts, and rewrites
+- `OPENAI_COMPATIBLE_CAROUSEL_MODEL` optional override for carousel slide generation; when omitted, carousel generation uses `OPENAI_COMPATIBLE_COPY_MODEL`
 - `OPENAI_COMPATIBLE_THINKING=disabled|enabled` when a compatible provider supports it
 - `OPENAI_COMPATIBLE_REASONING_EFFORT=high|max` when a compatible provider supports it
 
@@ -109,6 +112,7 @@ Generation requests may use only approved clinic context:
 - CTA preference
 - disclaimer preference
 - safe visual style and brand colors for visual asset pilots
+- safe carousel slide count, visual style, content title, category, and key points for deterministic carousel generation
 
 The API rejects obvious patient-identifiable inputs and logs every generation attempt without secrets or raw auth tokens.
 

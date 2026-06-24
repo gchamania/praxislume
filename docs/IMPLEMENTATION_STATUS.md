@@ -8,7 +8,7 @@ PraxisLume is an initialized Git repository with a runnable foundation for v0.1 
 
 - Git repository: initialized in `C:\codex_experiments\PraxisLume`.
 - Git remote: `origin` points to `https://github.com/gchamania/praxislume.git`.
-- Current implementation branch: `codex/pl-deepseek-ai-pilot`.
+- Current implementation branch: `codex/pl-v0-3-carousel-ai`.
 - Docs: canonical docs are populated and duplicate `docs/PraxisLume_*.md` files have been removed.
 - Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, clean architecture folders, Day 2 mockup-inspired visual foundations, prototype-parity MVP workspace routes, widget tests, controller tests, and an architecture boundary test.
 - Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake and OpenAI-compatible provider routing, Supabase-backed generation/quota/compliance stores, and tests.
@@ -91,6 +91,7 @@ Supabase:
 - `supabase/config.toml`
 - `supabase/migrations/202606220001_initial_mvp_schema.sql`
 - `supabase/migrations/202606240001_generated_visual_assets.sql`
+- `supabase/migrations/202606240002_v0_3_carousel_slides.sql`
 - `supabase/seed.sql`
 - `supabase/tests/rls_cross_clinic.sql`
 
@@ -113,7 +114,7 @@ Known missing or deferred implementation areas:
 
 ## Current Version Target
 
-Implemented target: Foundation v0.0, MVP v0.1 prototype, light v0.2 brand kit foundation, Sprint 10-12 backend live-AI routing foundation, Flutter clean-architecture refactor, UI/UX prototype parity for the current MVP routes, and Day 3 DeepSeek AI pilot wiring.
+Implemented target: Foundation v0.0, MVP v0.1 prototype, light v0.2 brand kit foundation, Sprint 10-12 backend live-AI routing foundation, Flutter clean-architecture refactor, UI/UX prototype parity for the current MVP routes, Day 3 DeepSeek AI pilot wiring, and v0.3 carousel generator foundation.
 
 Still enforced:
 
@@ -122,6 +123,7 @@ Still enforced:
 - AI calls go through backend API contracts; Flutter does not contain provider keys.
 - Patient-identifiable generation input is rejected by shared/API guards.
 - Visual output remains deterministic; v0.2 includes a brand preview, not a design canvas.
+- v0.3 carousel output uses structured AI slide JSON plus deterministic Flutter templates, not a freeform canvas.
 - Live AI remains backend-only and route-gated; fake generation stays available for deterministic local/pilot smoke.
 - AI image generation is not MVP core. The only image-related path is a disabled-by-default backend visual asset pilot for safe abstract thumbnails.
 
@@ -204,11 +206,18 @@ Still enforced:
 - Added Flutter API client/controller/content-detail support for “Generate safe thumbnail,” rendering only backend-returned signed asset URLs and showing an honest disabled state when no backend generation client is configured.
 - Updated server-only env examples and canonical docs for DeepSeek text routing and the conditional image-generation pilot.
 - Ran Day 3 follow-on sprint hygiene for the DeepSeek branch: pushed the branch, attempted draft PR creation, verified local fake-provider Supabase/API smoke, rebuilt Flutter web with local Supabase/API dart defines, and served the built app locally.
+- Added v0.3 carousel generation contracts for safe 5-slide and 7-slide structured carousel packages.
+- Added protected backend route `POST /v1/generations/carousel-slides` with fake provider support, OpenAI-compatible/DeepSeek routing, patient-data rejection, quota reservation, and `ai_generation_logs` entries using `generation_type=carousel_slides`.
+- Added server-only env controls `CAROUSEL_PROVIDER` and `OPENAI_COMPATIBLE_CAROUSEL_MODEL`, with fallback to `OPENAI_COMPATIBLE_COPY_MODEL`.
+- Added Supabase migration `202606240002_v0_3_carousel_slides.sql` for bounded `content_items.carousel_slides` JSON persistence under existing content-item RLS.
+- Added Flutter `CarouselSlide` domain model, API client method, repository persistence, controller generation/save methods, `/carousels` workspace route, sidebar navigation, and content-detail Carousel Studio v0.3 panel.
+- Added deterministic branded carousel previews, editable slide headline/body/visual-cue fields, save, regenerate, and manual copy/export package actions.
 
 ## In Progress
 
 - Visual browser route comparison remains manual because the in-app browser automation tab crashed while loading the Flutter web build in this pass; the built app itself served successfully over HTTP.
 - Optional live DeepSeek text smoke remains pending until a server-only DeepSeek key is supplied outside Git.
+- v0.3 production PNG/PDF export is not active yet; this pass validates structured carousel generation, deterministic preview, editable slide copy, persistence, and manual package copy/export.
 
 ## Blocked
 
@@ -218,21 +227,45 @@ Still enforced:
 
 ## Next Recommended Codex Agents
 
-1. Manual PR and merge hygiene agent
-   - Open the manual PR for `codex/pl-deepseek-ai-pilot` into `surgmuster`, confirm the diff includes the intended UI parity plus DeepSeek pilot work, and merge only after review.
+1. v0.3 QA/browser smoke agent
+   - Run the v0.3 carousel flow in browser: generate campaign, open content detail, generate carousel, edit slide copy, save, copy package, reload, and verify persisted slides.
 
-2. Deployment setup agent
+2. Live DeepSeek text smoke agent
+   - With a server-only DeepSeek key, run live text smoke for campaign plan, caption, reel script, tone rewrite, and carousel slides using the documented models.
+
+3. Deployment setup agent
    - Prepare staging environment variables and deployment notes for Flutter web, Fastify API, Supabase, and optional OpenAI-compatible routing without committing service-role or provider secrets.
 
-3. Live-provider smoke agent
-   - Run an optional live-provider smoke behind the existing OpenAI-compatible backend adapter with real staging secrets supplied outside Git.
-   - Keep fake provider as default and keep all provider keys server-only.
-
-4. DeepSeek live smoke agent
-   - With a server-only DeepSeek key, run live text smoke for campaign plan, caption, reel script, and tone rewrite using the documented DeepSeek models.
-   - Run visual asset live smoke only after an exact compatible image endpoint and model are supplied; otherwise keep `IMAGE_GENERATION_ENABLED=false`.
+4. v0.3 export agent
+   - Add deterministic PNG/PDF export pipeline after the carousel structure is reviewed with doctors; do not introduce freeform canvas editing.
 
 ## Verification Results
+
+Current v0.3 carousel generator verification on `codex/pl-v0-3-carousel-ai`:
+
+- TDD red checks failed as expected on missing carousel contracts, missing `/v1/generations/carousel-slides`, and missing Flutter `CarouselSlide`/content-detail UI.
+- `npm.cmd run test:contracts -- --run tests/contracts.test.ts` exited 0 with 8 contract tests passing after implementation.
+- `npm.cmd run test:api -- --run tests/app.test.ts` exited 0 with 31 API tests passing after implementation, including fake carousel generation and OpenAI-compatible DeepSeek carousel routing.
+- `flutter test test/app_test.dart` exited 0 with 9 widget tests passing after implementation, including the v0.3 Carousel Studio content-detail flow and `/carousels` workspace route.
+- `dart format .` in `apps/praxislume_app` formatted the affected Flutter files.
+- `npm.cmd run docs:check` exited 0.
+- `npm.cmd run lint` exited 0.
+- `npm.cmd run typecheck` exited 0.
+- `npm.cmd test` exited 0 with 8 contract tests and 31 API tests passing.
+- `npm.cmd run build` exited 0.
+- `dart format --set-exit-if-changed .` in `apps/praxislume_app` exited 0 with 0 files changed.
+- `flutter analyze` in `apps/praxislume_app` exited 0 with no issues.
+- `flutter test` in `apps/praxislume_app` exited 0 with 15 regular tests passing and 1 local Supabase/API smoke test skipped because dart defines were not provided.
+- `flutter build web` in `apps/praxislume_app` exited 0 and built `build\web`; Flutter printed the existing non-fatal icon font warning.
+- `npx.cmd supabase migration up` applied `202606240002_v0_3_carousel_slides.sql`.
+- `npm.cmd run supabase:test:rls` exited 0.
+- `flutter test test/supabase_repository_smoke_test.dart --dart-define=SUPABASE_URL=<local> --dart-define=SUPABASE_ANON_KEY=<local anon> --dart-define=API_BASE_URL=http://127.0.0.1:8787` exited 0 with 1 local Supabase/API smoke test passing, including carousel slide persistence and `carousel_slides` generation logging.
+- Flutter secret scan for provider/service-role key patterns returned no matches; `rg` exited 1 because nothing was found.
+- `flutter build web --dart-define=SUPABASE_URL=<local> --dart-define=SUPABASE_ANON_KEY=<local anon> --dart-define=API_BASE_URL=http://127.0.0.1:8787` exited 0 and built `build\web`.
+- Static server for `build\web` responded 200 at `http://127.0.0.1:8088/` with page title `PraxisLume`.
+- Optional live DeepSeek smoke was not run because no real server-only DeepSeek key was supplied in this repository.
+
+Source-of-truth reconciliation: v0.3 remains aligned with `docs/SOURCE_OF_TRUTH.md`. PraxisLume still uses Flutter, Supabase, Fastify, shared contracts, and backend-gated AI. Carousel generation is structured JSON plus deterministic branded templates, not a Canva clone or freeform design canvas. Provider keys stay server-only, patient-identifiable input is rejected before provider calls, and no avatar/video/social publishing/CRM/diagnosis workflow was added.
 
 Current Day 3 DeepSeek AI pilot verification on `codex/pl-deepseek-ai-pilot`:
 

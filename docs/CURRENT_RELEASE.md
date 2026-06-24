@@ -2,7 +2,7 @@
 
 ## Target
 
-Current target: Foundation v0.0, MVP v0.1, and light v0.2 brand kit.
+Current target: Foundation v0.0, MVP v0.1, light v0.2 brand kit, and v0.3 carousel generator foundation.
 
 Pilot promise:
 
@@ -70,6 +70,27 @@ Excluded:
 - Drag and drop design editing.
 - Multi-location brand overrides.
 
+## v0.3 Carousel Generator
+
+Included:
+
+- Topic/content-item to structured 5-slide carousel workflow.
+- Backend-gated carousel slide generation through `POST /v1/generations/carousel-slides`.
+- Fake provider by default and OpenAI-compatible live routing through server-only env.
+- Deterministic Flutter carousel preview cards using clinic brand colors.
+- Editable slide headline/body/visual-cue text.
+- Manual carousel package copy/export text for pilot review.
+- Supabase persistence in `content_items.carousel_slides`.
+
+Excluded:
+
+- Freeform canvas editing.
+- Social publishing integrations.
+- AI image generation as the core carousel renderer.
+- Avatar or AI video generation.
+- Automated medical/legal approval.
+- Production PNG/PDF export pipeline; this pass keeps carousel output review/export-light while the deterministic layout model is validated.
+
 ## Release Gate
 
 Before pilot release:
@@ -77,6 +98,7 @@ Before pilot release:
 - Cross-clinic RLS checks must pass.
 - No provider secrets or service-role keys may appear in Flutter.
 - Every generation route must validate inputs and write an AI generation log.
+- Carousel generation must remain structured JSON, provider-agnostic, and logged as `carousel_slides`.
 - Live provider calls must remain backend-only and configurable by server env.
 - Patient-identifiable generation input must be rejected.
 - QA report must cover auth, onboarding, campaign generation, compliance, copy/export, brand kit, and storage isolation.

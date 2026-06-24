@@ -3,6 +3,7 @@ import Fastify from 'fastify';
 import { nanoid } from 'nanoid';
 import {
   campaignPlanRequestSchema,
+  carouselGenerationRequestSchema,
   captionGenerationRequestSchema,
   complianceReviewRequestSchema,
   patientDataGuard,
@@ -200,6 +201,36 @@ export function buildApp(options: BuildAppOptions = {}) {
           tone: parsed.data.tone
         },
         generate: () => provider.rewriteTone(parsed.data)
+      });
+    }
+  );
+
+  app.post(
+    '/v1/generations/carousel-slides',
+    { preHandler: authPreHandler },
+    async (request, reply) => {
+      const parsed = carouselGenerationRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return sendError(reply, request, 400, 'validation_error', 'Request validation failed');
+      }
+      const patientGuard = ensureNoPatientData(parsed.data);
+      return runGeneration({
+        request,
+        reply,
+        generationStore,
+        provider,
+        generationType: 'carousel_slides',
+        input: parsed.data,
+        patientGuard,
+        inputSummary: {
+          specialty: parsed.data.specialty,
+          category: parsed.data.category,
+          slideCount: parsed.data.slideCount,
+          tone: parsed.data.tone,
+          visualStyle: parsed.data.visualStyle,
+          keyPointCount: parsed.data.keyPoints.length
+        },
+        generate: () => provider.generateCarouselSlides(parsed.data)
       });
     }
   );

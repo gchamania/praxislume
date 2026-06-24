@@ -185,6 +185,51 @@ class PraxisApiGenerationClient implements PraxisGenerationClient {
     );
   }
 
+  @override
+  Future<List<CarouselSlide>> generateCarouselSlides({
+    required PraxisState state,
+    required ContentItem item,
+    required int slideCount,
+  }) async {
+    final clinic = state.clinic;
+    final doctor = state.doctor;
+    if (clinic == null || doctor == null || clinic.id.isEmpty) {
+      throw const PraxisApiException(
+        'Clinic onboarding is required before carousel generation.',
+      );
+    }
+    final data = await _postJson('/v1/generations/carousel-slides', {
+      'clinicId': clinic.id,
+      'contentItemId': item.id,
+      'title': item.title,
+      'specialty': doctor.specialty,
+      'category': item.category,
+      'tone': state.brandKit.tone,
+      'services': clinic.services,
+      'locality': clinic.locality,
+      'keyPoints': _keyPointsFor(item),
+      'ctaPreference': item.shortCta.isEmpty
+          ? state.brandKit.defaultCta
+          : item.shortCta,
+      'disclaimerPreference': state.brandKit.disclaimer,
+      'slideCount': slideCount,
+      'brandColors': {
+        'primary': state.brandKit.primaryColor,
+        'accent': state.brandKit.accentColor,
+      },
+      'visualStyle': 'clean_medical_cards',
+    });
+    final slides = data['slides'];
+    if (slides is! List) {
+      throw const PraxisApiException('Carousel response was invalid.');
+    }
+    return [
+      for (final slide in slides)
+        if (slide is Map)
+          CarouselSlide.fromJson(Map<String, dynamic>.from(slide)),
+    ];
+  }
+
   Future<Map<String, dynamic>> _postJson(
     String path,
     Map<String, dynamic> body,
@@ -221,4 +266,13 @@ class PraxisApiGenerationClient implements PraxisGenerationClient {
     }
     return Map<String, dynamic>.from(data);
   }
+}
+
+List<String> _keyPointsFor(ContentItem item) {
+  final points = <String>[
+    item.title,
+    item.caption.split('.').first.trim(),
+    if (item.shortCta.isNotEmpty) item.shortCta,
+  ].where((point) => point.isNotEmpty).take(3).toList();
+  return points.isEmpty ? ['General patient education'] : points;
 }

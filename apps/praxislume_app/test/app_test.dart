@@ -181,6 +181,49 @@ void main() {
     expect(find.byKey(const Key('generatedThumbnailPreview')), findsOneWidget);
   });
 
+  testWidgets('generates and exports a v0.3 branded carousel package', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 3000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repository = RecordingPraxisRepository(
+      initialState: _contentDetailState(),
+    );
+    final generationClient = RecordingGenerationClient();
+    final controller = PraxisController(
+      repository: repository,
+      generationClient: generationClient,
+      initialState: _contentDetailState(),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [praxisProvider.overrideWith((ref) => controller)],
+        child: const MaterialApp(home: ContentDetailScreen(itemId: 'item-1')),
+      ),
+    );
+
+    await tester.ensureVisible(find.byKey(const Key('generateCarouselButton')));
+    await tester.tap(find.byKey(const Key('generateCarouselButton')));
+    await tester.pumpAndSettle();
+
+    expect(generationClient.carouselCalls, 1);
+    expect(find.text('Carousel Studio v0.3'), findsOneWidget);
+    expect(find.byKey(const Key('carouselSlidePreview-1')), findsOneWidget);
+    expect(find.text('General education'), findsWidgets);
+
+    await tester.ensureVisible(
+      find.byKey(const Key('copyCarouselPackageButton')),
+    );
+    await tester.tap(find.byKey(const Key('copyCarouselPackageButton')));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('Carousel package copied'), findsOneWidget);
+  });
+
   testWidgets('saves brand kit and shows deterministic preview', (
     tester,
   ) async {
@@ -212,6 +255,9 @@ void main() {
   testWidgets('renders redesigned workspace routes and future placeholders', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(const PraxisLumeApp());
     await _completeDemoOnboarding(tester);
 
@@ -225,21 +271,25 @@ void main() {
     expect(find.byKey(const Key('librarySearchField')), findsOneWidget);
     expect(find.text('Grid'), findsOneWidget);
 
-    await tester.tap(find.text('Templates'));
+    await _tapWorkspaceNav(tester, 'Carousels');
+    await tester.pumpAndSettle();
+    expect(find.text('Carousel Studio'), findsWidgets);
+
+    await _tapWorkspaceNav(tester, 'Templates');
     await tester.pumpAndSettle();
     expect(
       find.text('Preview only / deferred after MVP validation'),
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Analytics'));
+    await _tapWorkspaceNav(tester, 'Analytics');
     await tester.pumpAndSettle();
     expect(
       find.text('Preview only / deferred after MVP validation'),
       findsOneWidget,
     );
 
-    await tester.tap(find.text('Media Studio'));
+    await _tapWorkspaceNav(tester, 'Media Studio');
     await tester.pumpAndSettle();
     expect(
       find.text('Preview only / deferred after MVP validation'),
@@ -341,6 +391,7 @@ Future<void> _tapWorkspaceNav(WidgetTester tester, String label) async {
 
 class RecordingGenerationClient implements PraxisGenerationClient {
   int visualAssetCalls = 0;
+  int carouselCalls = 0;
 
   @override
   Future<List<GeneratedCampaignPlanItem>> generateCampaignPlan({
@@ -422,6 +473,52 @@ class RecordingGenerationClient implements PraxisGenerationClient {
       expiresInSeconds: 300,
     );
   }
+
+  @override
+  Future<List<CarouselSlide>> generateCarouselSlides({
+    required PraxisState state,
+    required ContentItem item,
+    required int slideCount,
+  }) async {
+    carouselCalls += 1;
+    return const [
+      CarouselSlide(
+        slideNumber: 1,
+        role: 'cover',
+        headline: 'Sinus care basics',
+        body: 'A simple patient-education carousel from the clinic.',
+        visualCue: 'Soft ENT abstract cover',
+      ),
+      CarouselSlide(
+        slideNumber: 2,
+        role: 'education',
+        headline: 'Why symptoms persist',
+        body: 'Recurring symptoms deserve a qualified ENT review.',
+        visualCue: 'Checklist card',
+      ),
+      CarouselSlide(
+        slideNumber: 3,
+        role: 'education',
+        headline: 'When to consult',
+        body: 'Do not ignore symptoms that keep coming back.',
+        visualCue: 'Calendar marker',
+      ),
+      CarouselSlide(
+        slideNumber: 4,
+        role: 'cta',
+        headline: 'Need help?',
+        body: 'Book an ENT consultation.',
+        visualCue: 'Clinic CTA footer',
+      ),
+      CarouselSlide(
+        slideNumber: 5,
+        role: 'disclaimer',
+        headline: 'General education',
+        body: 'For general education only.',
+        visualCue: 'Disclaimer strip',
+      ),
+    ];
+  }
 }
 
 class RecordingPraxisRepository implements PraxisRepository {
@@ -478,9 +575,18 @@ class RecordingPraxisRepository implements PraxisRepository {
   Future<PraxisState> updateContentItem({
     required PraxisState currentState,
     required String id,
-    required String caption,
+    String? caption,
+    List<CarouselSlide>? carouselSlides,
   }) async {
-    return currentState;
+    return currentState.copyWith(
+      items: [
+        for (final item in currentState.items)
+          if (item.id == id)
+            item.copyWith(caption: caption, carouselSlides: carouselSlides)
+          else
+            item,
+      ],
+    );
   }
 }
 

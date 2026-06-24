@@ -1,11 +1,14 @@
 import { createHash } from 'node:crypto';
 import {
   campaignPlanResponseSchema,
+  carouselGenerationResponseSchema,
   captionGenerationResponseSchema,
   reelScriptResponseSchema,
   toneRewriteResponseSchema,
   type CampaignPlanRequest,
   type CampaignPlanResponse,
+  type CarouselGenerationRequest,
+  type CarouselGenerationResponse,
   type CaptionGenerationRequest,
   type ReelScriptRequest,
   type ToneRewriteRequest
@@ -14,7 +17,12 @@ import { z, type ZodType } from 'zod';
 import type { ApiConfig, GenerationProviderName } from './config.js';
 import { FakeProvider } from './fakeProvider.js';
 
-export type GenerationType = 'campaign_plan' | 'content_item_caption' | 'reel_script' | 'tone_rewrite';
+export type GenerationType =
+  | 'campaign_plan'
+  | 'content_item_caption'
+  | 'reel_script'
+  | 'tone_rewrite'
+  | 'carousel_slides';
 
 export type GenerationProviderMetadata = {
   provider: GenerationProviderName;
@@ -54,13 +62,17 @@ export interface GenerationProviderRouter {
   rewriteTone(
     request: ToneRewriteRequest
   ): Promise<GenerationProviderResult<z.infer<typeof toneRewriteResponseSchema>>>;
+  generateCarouselSlides(
+    request: CarouselGenerationRequest
+  ): Promise<GenerationProviderResult<CarouselGenerationResponse>>;
 }
 
 const promptVersions: Record<GenerationType, string> = {
   campaign_plan: 'campaign_plan:v1',
   content_item_caption: 'content_item_caption:v1',
   reel_script: 'reel_script:v1',
-  tone_rewrite: 'tone_rewrite:v1'
+  tone_rewrite: 'tone_rewrite:v1',
+  carousel_slides: 'carousel_slides:v1'
 };
 
 export function createGenerationProviderRouter(config: ApiConfig): GenerationProviderRouter {
@@ -80,7 +92,8 @@ class ConfiguredGenerationProviderRouter implements GenerationProviderRouter {
       this.routeProvider('campaign_plan'),
       this.routeProvider('content_item_caption'),
       this.routeProvider('reel_script'),
-      this.routeProvider('tone_rewrite')
+      this.routeProvider('tone_rewrite'),
+      this.routeProvider('carousel_slides')
     ];
     return routeProviders.every((provider) => provider === routeProviders[0]) ? routeProviders[0] : 'mixed';
   }
@@ -126,6 +139,14 @@ class ConfiguredGenerationProviderRouter implements GenerationProviderRouter {
     return this.fakeResult('tone_rewrite', request, this.fakeProvider.rewriteTone(request));
   }
 
+  async generateCarouselSlides(request: CarouselGenerationRequest) {
+    if (this.routeProvider('carousel_slides') === 'openai_compatible') {
+      return this.openAIProvider().generateCarouselSlides(request);
+    }
+
+    return this.fakeResult('carousel_slides', request, this.fakeProvider.generateCarouselSlides(request));
+  }
+
   private fakeResult<TData>(generationType: GenerationType, request: unknown, data: TData): GenerationProviderResult<TData> {
     const promptVersion = `${generationType}:fake-v1`;
     return {
@@ -147,12 +168,21 @@ class ConfiguredGenerationProviderRouter implements GenerationProviderRouter {
         return this.config.REEL_SCRIPT_PROVIDER ?? this.config.AI_PROVIDER;
       case 'tone_rewrite':
         return this.config.TONE_REWRITE_PROVIDER ?? this.config.AI_PROVIDER;
+      case 'carousel_slides':
+        return this.config.CAROUSEL_PROVIDER ?? this.config.AI_PROVIDER;
     }
   }
 
   private openAIModel(generationType: GenerationType) {
     if (generationType === 'campaign_plan') {
       return requiredConfig(this.config.OPENAI_COMPATIBLE_CAMPAIGN_MODEL, 'OPENAI_COMPATIBLE_CAMPAIGN_MODEL');
+    }
+
+    if (generationType === 'carousel_slides') {
+      return (
+        this.config.OPENAI_COMPATIBLE_CAROUSEL_MODEL ??
+        requiredConfig(this.config.OPENAI_COMPATIBLE_COPY_MODEL, 'OPENAI_COMPATIBLE_COPY_MODEL')
+      );
     }
 
     return requiredConfig(this.config.OPENAI_COMPATIBLE_COPY_MODEL, 'OPENAI_COMPATIBLE_COPY_MODEL');
@@ -277,6 +307,41 @@ class OpenAICompatibleProvider {
             contextLine('Disclaimer preference', request.disclaimerPreference),
             `Content: ${request.content}`,
             'Return {"rewrittenContent":"..."} only.'
+          ]
+            .filter(Boolean)
+            .join('\n')
+        }
+      ]
+    });
+  }
+
+  generateCarouselSlides(request: CarouselGenerationRequest) {
+    return this.completeJson({
+      generationType: 'carousel_slides',
+      model:
+        this.config.OPENAI_COMPATIBLE_CAROUSEL_MODEL ??
+        requiredConfig(this.config.OPENAI_COMPATIBLE_COPY_MODEL, 'OPENAI_COMPATIBLE_COPY_MODEL'),
+      schema: carouselGenerationResponseSchema,
+      request,
+      messages: [
+        systemPrompt(),
+        {
+          role: 'user',
+          content: [
+            `Create a ${request.slideCount}-slide PraxisLume branded medical carousel as JSON.`,
+            `Title: ${request.title}`,
+            `Specialty: ${request.specialty}`,
+            `Category: ${request.category}`,
+            contextLine('Clinic locality', request.locality),
+            contextLine('Services', request.services?.join(', ')),
+            `Tone: ${request.tone}`,
+            `Key points: ${request.keyPoints.join(' | ')}`,
+            `CTA to use: ${request.ctaPreference}`,
+            `Disclaimer: ${request.disclaimerPreference}`,
+            `Brand colors: primary ${request.brandColors.primary}, accent ${request.brandColors.accent}`,
+            `Visual style: ${request.visualStyle}`,
+            'Return {"title":"...","slideCount":5|7,"visualStyle":"...","disclaimerText":"...","slides":[...]} only.',
+            'Slide 1 must be role cover. The final slide must be role disclaimer. Include at least one CTA slide. Keep all copy general education, patient-safe, and concise.'
           ]
             .filter(Boolean)
             .join('\n')

@@ -89,13 +89,18 @@ class InMemoryPraxisRepository implements PraxisRepository {
   Future<PraxisState> updateContentItem({
     required PraxisState currentState,
     required String id,
-    required String caption,
+    String? caption,
+    List<CarouselSlide>? carouselSlides,
   }) async {
     _state = currentState.copyWith(
       items: [
         for (final item in currentState.items)
           if (item.id == id)
-            item.copyWith(caption: caption, status: 'drafted')
+            item.copyWith(
+              caption: caption,
+              status: caption != null ? 'drafted' : item.status,
+              carouselSlides: carouselSlides,
+            )
           else
             item,
       ],

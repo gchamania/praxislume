@@ -29,11 +29,13 @@ export const configSchema = z.object({
   CAPTION_PROVIDER: generationProviderSchema.optional(),
   REEL_SCRIPT_PROVIDER: generationProviderSchema.optional(),
   TONE_REWRITE_PROVIDER: generationProviderSchema.optional(),
+  CAROUSEL_PROVIDER: generationProviderSchema.optional(),
   DEFAULT_DRAFT_MODEL: z.string().min(1).default('fake-draft-v1'),
   OPENAI_COMPATIBLE_BASE_URL: optionalEnvUrl,
   OPENAI_COMPATIBLE_API_KEY: optionalEnvString,
   OPENAI_COMPATIBLE_CAMPAIGN_MODEL: optionalEnvString,
   OPENAI_COMPATIBLE_COPY_MODEL: optionalEnvString,
+  OPENAI_COMPATIBLE_CAROUSEL_MODEL: optionalEnvString,
   OPENAI_COMPATIBLE_THINKING: z.enum(['disabled', 'enabled']).optional(),
   OPENAI_COMPATIBLE_REASONING_EFFORT: z.enum(['high', 'max']).optional(),
   GENERATION_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
@@ -50,7 +52,8 @@ export const configSchema = z.object({
   const captionProvider = config.CAPTION_PROVIDER ?? config.AI_PROVIDER;
   const reelProvider = config.REEL_SCRIPT_PROVIDER ?? config.AI_PROVIDER;
   const rewriteProvider = config.TONE_REWRITE_PROVIDER ?? config.AI_PROVIDER;
-  const liveProviders = [campaignProvider, captionProvider, reelProvider, rewriteProvider].filter(
+  const carouselProvider = config.CAROUSEL_PROVIDER ?? config.AI_PROVIDER;
+  const liveProviders = [campaignProvider, captionProvider, reelProvider, rewriteProvider, carouselProvider].filter(
     (provider) => provider === 'openai_compatible'
   );
 
@@ -85,12 +88,13 @@ export const configSchema = z.object({
   const copyProviderUsesLive =
     captionProvider === 'openai_compatible' ||
     reelProvider === 'openai_compatible' ||
-    rewriteProvider === 'openai_compatible';
+    rewriteProvider === 'openai_compatible' ||
+    (carouselProvider === 'openai_compatible' && !config.OPENAI_COMPATIBLE_CAROUSEL_MODEL);
   if (copyProviderUsesLive && !config.OPENAI_COMPATIBLE_COPY_MODEL) {
     context.addIssue({
       code: z.ZodIssueCode.custom,
       path: ['OPENAI_COMPATIBLE_COPY_MODEL'],
-      message: 'OPENAI_COMPATIBLE_COPY_MODEL is required when copy generation uses openai_compatible'
+      message: 'OPENAI_COMPATIBLE_COPY_MODEL is required when copy or carousel generation uses openai_compatible without a carousel-specific model'
     });
   }
 

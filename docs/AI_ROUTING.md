@@ -17,6 +17,7 @@ CAMPAIGN_PLAN_PROVIDER=fake
 CAPTION_PROVIDER=fake
 REEL_SCRIPT_PROVIDER=fake
 TONE_REWRITE_PROVIDER=fake
+CAROUSEL_PROVIDER=fake
 ```
 
 Enable live AI one route at a time:
@@ -26,18 +27,20 @@ CAMPAIGN_PLAN_PROVIDER=openai_compatible
 CAPTION_PROVIDER=openai_compatible
 REEL_SCRIPT_PROVIDER=openai_compatible
 TONE_REWRITE_PROVIDER=openai_compatible
+CAROUSEL_PROVIDER=openai_compatible
 OPENAI_COMPATIBLE_BASE_URL=https://api.openai.com/v1
 OPENAI_COMPATIBLE_API_KEY=server-only-key
 OPENAI_COMPATIBLE_CAMPAIGN_MODEL=campaign-planner-model
 OPENAI_COMPATIBLE_COPY_MODEL=copywriter-model
+OPENAI_COMPATIBLE_CAROUSEL_MODEL=carousel-model-optional
 OPENAI_COMPATIBLE_THINKING=disabled
 OPENAI_COMPATIBLE_REASONING_EFFORT=high
 ```
 
-`CAMPAIGN_PLAN_PROVIDER`, `CAPTION_PROVIDER`, `REEL_SCRIPT_PROVIDER`, and
-`TONE_REWRITE_PROVIDER` inherit `AI_PROVIDER` only when left unset. Prefer
-explicit per-route values in staging and production so models can be changed
-independently.
+`CAMPAIGN_PLAN_PROVIDER`, `CAPTION_PROVIDER`, `REEL_SCRIPT_PROVIDER`,
+`TONE_REWRITE_PROVIDER`, and `CAROUSEL_PROVIDER` inherit `AI_PROVIDER` only
+when left unset. Prefer explicit per-route values in staging and production so
+models can be changed independently.
 
 ## DeepSeek V4 Pilot
 
@@ -50,10 +53,12 @@ CAMPAIGN_PLAN_PROVIDER=openai_compatible
 CAPTION_PROVIDER=openai_compatible
 REEL_SCRIPT_PROVIDER=openai_compatible
 TONE_REWRITE_PROVIDER=openai_compatible
+CAROUSEL_PROVIDER=openai_compatible
 OPENAI_COMPATIBLE_BASE_URL=https://api.deepseek.com
 OPENAI_COMPATIBLE_API_KEY=<server-only-deepseek-key>
 OPENAI_COMPATIBLE_CAMPAIGN_MODEL=deepseek-v4-pro
 OPENAI_COMPATIBLE_COPY_MODEL=deepseek-v4-flash
+OPENAI_COMPATIBLE_CAROUSEL_MODEL=deepseek-v4-pro
 OPENAI_COMPATIBLE_THINKING=disabled
 OPENAI_COMPATIBLE_REASONING_EFFORT=high
 ```
@@ -61,6 +66,19 @@ OPENAI_COMPATIBLE_REASONING_EFFORT=high
 Keep `OPENAI_COMPATIBLE_THINKING=disabled` for structured JSON reliability
 unless a live smoke proves the provider can return strict schema-conformant JSON
 with thinking enabled.
+
+## v0.3 Carousel Generation
+
+`POST /v1/generations/carousel-slides` creates strict JSON slide copy for
+deterministic Flutter templates. The backend logs the attempt with
+`generation_type=carousel_slides`, rejects patient-identifiable inputs before
+provider calls, reserves usage through the normal generation store, and returns
+only structured slide fields to Flutter.
+
+Carousel generation must not become a freeform design canvas or an AI-image
+renderer. The model produces slide structure and copy; Flutter renders branded
+preview cards from clinic colors, CTA, disclaimer, and the controlled template
+style.
 
 ## Visual Asset Pilot
 

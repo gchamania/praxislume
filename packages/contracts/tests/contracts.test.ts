@@ -7,6 +7,8 @@ import {
   complianceReviewRequestSchema,
   contentCategorySchema,
   contentStatusSchema,
+  carouselGenerationRequestSchema,
+  carouselGenerationResponseSchema,
   generationToneSchema,
   patientDataGuard,
   visualAssetGenerationRequestSchema,
@@ -128,6 +130,81 @@ describe('shared contracts', () => {
         ...request,
         title: 'Patient phone 9876543210 before and after',
         visualStyle: 'patient_face'
+      })
+    ).toThrow();
+  });
+
+  it('validates v0.3 carousel generation contracts', () => {
+    const request = carouselGenerationRequestSchema.parse({
+      clinicId: '8a66fd06-dadc-4bdb-966a-2c701f74a287',
+      contentItemId: '11111111-1111-4111-8111-111111111111',
+      title: 'Sinus care basics',
+      specialty: 'ENT',
+      category: 'awareness',
+      tone: 'simple',
+      services: ['Sinus consultation'],
+      locality: 'Pune',
+      keyPoints: ['Why symptoms persist', 'When to consult'],
+      ctaPreference: 'Book an ENT consultation',
+      disclaimerPreference: 'For general education only.',
+      slideCount: 5,
+      brandColors: {
+        primary: '#0D4D57',
+        accent: '#F2C15E'
+      },
+      visualStyle: 'clean_medical_cards'
+    });
+    const response = carouselGenerationResponseSchema.parse({
+      title: 'Sinus care basics',
+      slideCount: 5,
+      visualStyle: 'clean_medical_cards',
+      disclaimerText: 'For general education only.',
+      slides: [
+        {
+          slideNumber: 1,
+          role: 'cover',
+          headline: 'Sinus care basics',
+          body: 'A simple clinic guide for patients.',
+          visualCue: 'Soft ENT abstract pattern'
+        },
+        {
+          slideNumber: 2,
+          role: 'education',
+          headline: 'Why symptoms persist',
+          body: 'Some symptoms need a qualified ENT review.',
+          visualCue: 'Checklist card'
+        },
+        {
+          slideNumber: 3,
+          role: 'education',
+          headline: 'When to consult',
+          body: 'Do not ignore symptoms that keep returning.',
+          visualCue: 'Calendar marker'
+        },
+        {
+          slideNumber: 4,
+          role: 'cta',
+          headline: 'Need help?',
+          body: 'Book an ENT consultation.',
+          visualCue: 'Clinic CTA footer'
+        },
+        {
+          slideNumber: 5,
+          role: 'disclaimer',
+          headline: 'General education',
+          body: 'For general education only.',
+          visualCue: 'Disclaimer strip'
+        }
+      ]
+    });
+
+    expect(request.slideCount).toBe(5);
+    expect(response.slides).toHaveLength(5);
+    expect(response.slides.at(-1)?.role).toBe('disclaimer');
+    expect(() =>
+      carouselGenerationRequestSchema.parse({
+        ...request,
+        slideCount: 6
       })
     ).toThrow();
   });

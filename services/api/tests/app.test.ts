@@ -554,6 +554,99 @@ describe('PraxisLume API', () => {
     );
   });
 
+  it('generates v0.3 carousel slides through the backend and logs the attempt', async () => {
+    const generationStore = new RecordingGenerationStore();
+    const app = buildApp({ env, allowTestTokens: true, generationStore });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/carousel-slides',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: carouselPayload()
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toMatchObject({
+      title: 'Sinus care basics',
+      slideCount: 5,
+      visualStyle: 'clean_medical_cards'
+    });
+    expect(response.json().data.slides).toHaveLength(5);
+    expect(response.json().data.slides[0]).toMatchObject({
+      slideNumber: 1,
+      role: 'cover'
+    });
+    expect(response.json().data.slides.at(-1)).toMatchObject({
+      role: 'disclaimer'
+    });
+    expect(generationStore.entries[0]).toEqual(
+      expect.objectContaining({
+        generationType: 'carousel_slides',
+        provider: 'fake',
+        model: 'fake-draft-v1',
+        status: 'succeeded'
+      })
+    );
+  });
+
+  it('routes v0.3 carousel generation through the OpenAI-compatible AI API', async () => {
+    const generationStore = new RecordingGenerationStore();
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify(carouselResponseFixture())
+            }
+          }
+        ],
+        usage: { prompt_tokens: 71, completion_tokens: 129 }
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const app = buildApp({
+      env: {
+        ...env,
+        CAROUSEL_PROVIDER: 'openai_compatible',
+        OPENAI_COMPATIBLE_BASE_URL: 'https://api.deepseek.com',
+        OPENAI_COMPATIBLE_API_KEY: 'server-only-deepseek-key',
+        OPENAI_COMPATIBLE_COPY_MODEL: 'deepseek-v4-flash',
+        OPENAI_COMPATIBLE_CAROUSEL_MODEL: 'deepseek-v4-pro',
+        OPENAI_COMPATIBLE_THINKING: 'disabled'
+      },
+      allowTestTokens: true,
+      generationStore
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/carousel-slides',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: carouselPayload()
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, request] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.deepseek.com/chat/completions');
+    const body = JSON.parse(request.body);
+    expect(body).toMatchObject({
+      model: 'deepseek-v4-pro',
+      response_format: { type: 'json_object' },
+      thinking: { type: 'disabled' }
+    });
+    expect(generationStore.entries[0]).toEqual(
+      expect.objectContaining({
+        generationType: 'carousel_slides',
+        provider: 'openai_compatible',
+        model: 'deepseek-v4-pro',
+        status: 'succeeded',
+        promptTokens: 71,
+        completionTokens: 129
+      })
+    );
+  });
+
   it('rejects patient-identifiable visual asset inputs before quota or provider calls', async () => {
     const generationStore = new RecordingGenerationStore();
     const app = buildApp({
@@ -1160,6 +1253,74 @@ function visualAssetPayload() {
       accent: '#F2C15E'
     },
     visualStyle: 'clean_medical_abstract'
+  };
+}
+
+function carouselPayload() {
+  return {
+    clinicId: '8a66fd06-dadc-4bdb-966a-2c701f74a287',
+    contentItemId: '11111111-1111-4111-8111-111111111111',
+    title: 'Sinus care basics',
+    specialty: 'ENT',
+    category: 'awareness',
+    tone: 'simple',
+    services: ['Sinus consultation'],
+    locality: 'Pune',
+    keyPoints: ['Why symptoms persist', 'When to consult'],
+    ctaPreference: 'Book an ENT consultation',
+    disclaimerPreference: 'For general education only.',
+    slideCount: 5,
+    brandColors: {
+      primary: '#0D4D57',
+      accent: '#F2C15E'
+    },
+    visualStyle: 'clean_medical_cards'
+  };
+}
+
+function carouselResponseFixture() {
+  return {
+    title: 'Sinus care basics',
+    slideCount: 5,
+    visualStyle: 'clean_medical_cards',
+    disclaimerText: 'For general education only.',
+    slides: [
+      {
+        slideNumber: 1,
+        role: 'cover',
+        headline: 'Sinus care basics',
+        body: 'A simple patient-education carousel from the clinic.',
+        visualCue: 'Soft ENT abstract cover'
+      },
+      {
+        slideNumber: 2,
+        role: 'education',
+        headline: 'Why symptoms persist',
+        body: 'Recurring symptoms deserve a qualified ENT review.',
+        visualCue: 'Checklist card'
+      },
+      {
+        slideNumber: 3,
+        role: 'education',
+        headline: 'When to consult',
+        body: 'Do not ignore symptoms that keep coming back.',
+        visualCue: 'Calendar marker'
+      },
+      {
+        slideNumber: 4,
+        role: 'cta',
+        headline: 'Need help?',
+        body: 'Book an ENT consultation.',
+        visualCue: 'Clinic CTA footer'
+      },
+      {
+        slideNumber: 5,
+        role: 'disclaimer',
+        headline: 'General education',
+        body: 'For general education only.',
+        visualCue: 'Disclaimer strip'
+      }
+    ]
   };
 }
 

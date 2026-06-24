@@ -101,6 +101,7 @@ class ContentItem {
     required this.caption,
     required this.shortCta,
     required this.reelScript,
+    this.carouselSlides = const [],
   });
 
   final String id;
@@ -112,12 +113,14 @@ class ContentItem {
   final String caption;
   final String shortCta;
   final String reelScript;
+  final List<CarouselSlide> carouselSlides;
 
   ContentItem copyWith({
     String? status,
     String? caption,
     String? shortCta,
     String? reelScript,
+    List<CarouselSlide>? carouselSlides,
   }) {
     return ContentItem(
       id: id,
@@ -129,6 +132,53 @@ class ContentItem {
       caption: caption ?? this.caption,
       shortCta: shortCta ?? this.shortCta,
       reelScript: reelScript ?? this.reelScript,
+      carouselSlides: carouselSlides ?? this.carouselSlides,
+    );
+  }
+}
+
+class CarouselSlide {
+  const CarouselSlide({
+    required this.slideNumber,
+    required this.role,
+    required this.headline,
+    required this.body,
+    required this.visualCue,
+  });
+
+  final int slideNumber;
+  final String role;
+  final String headline;
+  final String body;
+  final String visualCue;
+
+  CarouselSlide copyWith({String? headline, String? body, String? visualCue}) {
+    return CarouselSlide(
+      slideNumber: slideNumber,
+      role: role,
+      headline: headline ?? this.headline,
+      body: body ?? this.body,
+      visualCue: visualCue ?? this.visualCue,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'slideNumber': slideNumber,
+      'role': role,
+      'headline': headline,
+      'body': body,
+      'visualCue': visualCue,
+    };
+  }
+
+  static CarouselSlide fromJson(Map<String, dynamic> json) {
+    return CarouselSlide(
+      slideNumber: int.tryParse('${json['slideNumber']}') ?? 1,
+      role: '${json['role'] ?? 'education'}',
+      headline: '${json['headline'] ?? ''}',
+      body: '${json['body'] ?? ''}',
+      visualCue: '${json['visualCue'] ?? ''}',
     );
   }
 }

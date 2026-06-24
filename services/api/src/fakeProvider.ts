@@ -1,6 +1,8 @@
 import type {
   CampaignPlanRequest,
   CampaignPlanResponse,
+  CarouselGenerationRequest,
+  CarouselGenerationResponse,
   CaptionGenerationRequest,
   ReelScriptRequest,
   ToneRewriteRequest
@@ -63,6 +65,52 @@ export class FakeProvider {
   rewriteTone(request: ToneRewriteRequest) {
     return {
       rewrittenContent: `[${request.tone}] ${request.content}`
+    };
+  }
+
+  generateCarouselSlides(request: CarouselGenerationRequest): CarouselGenerationResponse {
+    const educationSlides = Math.max(1, request.slideCount - 3);
+    const topicPoints = request.keyPoints.length > 0 ? request.keyPoints : [`Understand ${request.title}`];
+    const slides: CarouselGenerationResponse['slides'] = [
+      {
+        slideNumber: 1,
+        role: 'cover',
+        headline: request.title,
+        body: `${request.specialty} patient education from your clinic.`,
+        visualCue: `${request.visualStyle} cover using ${request.brandColors.primary}`
+      },
+      ...Array.from({ length: educationSlides }, (_, index) => {
+        const point = topicPoints[index % topicPoints.length];
+        return {
+          slideNumber: index + 2,
+          role: 'education' as const,
+          headline: point,
+          body: `A simple, safe explanation for patients in ${request.locality ?? 'your area'}.`,
+          visualCue: `Branded medical card ${index + 1}`
+        };
+      }),
+      {
+        slideNumber: request.slideCount - 1,
+        role: 'cta',
+        headline: 'Need clarity?',
+        body: request.ctaPreference,
+        visualCue: 'Clinic CTA footer'
+      },
+      {
+        slideNumber: request.slideCount,
+        role: 'disclaimer',
+        headline: 'General education',
+        body: request.disclaimerPreference,
+        visualCue: 'Disclaimer strip'
+      }
+    ];
+
+    return {
+      title: request.title,
+      slideCount: request.slideCount,
+      visualStyle: request.visualStyle,
+      disclaimerText: request.disclaimerPreference,
+      slides
     };
   }
 

@@ -148,6 +148,7 @@ void main() {
 
 class RecordingGenerationClient implements PraxisGenerationClient {
   int campaignPlanCalls = 0;
+  int carouselCalls = 0;
 
   @override
   Future<List<GeneratedCampaignPlanItem>> generateCampaignPlan({
@@ -237,6 +238,29 @@ class RecordingGenerationClient implements PraxisGenerationClient {
       height: 1024,
       signedUrl: 'https://storage.example.test/signed/asset.png',
       expiresInSeconds: 300,
+    );
+  }
+
+  @override
+  Future<List<CarouselSlide>> generateCarouselSlides({
+    required PraxisState state,
+    required ContentItem item,
+    required int slideCount,
+  }) async {
+    carouselCalls += 1;
+    return List.generate(
+      slideCount,
+      (index) => CarouselSlide(
+        slideNumber: index + 1,
+        role: index == 0
+            ? 'cover'
+            : index == slideCount - 1
+            ? 'disclaimer'
+            : 'education',
+        headline: 'API slide ${index + 1}',
+        body: 'API carousel body ${index + 1}',
+        visualCue: 'API visual cue ${index + 1}',
+      ),
     );
   }
 }
@@ -330,13 +354,18 @@ class RecordingPraxisRepository implements PraxisRepository {
   Future<PraxisState> updateContentItem({
     required PraxisState currentState,
     required String id,
-    required String caption,
+    String? caption,
+    List<CarouselSlide>? carouselSlides,
   }) async {
     storedState = currentState.copyWith(
       items: [
         for (final item in currentState.items)
           if (item.id == id)
-            item.copyWith(caption: caption, status: 'drafted')
+            item.copyWith(
+              caption: caption,
+              status: caption != null ? 'drafted' : item.status,
+              carouselSlides: carouselSlides,
+            )
           else
             item,
       ],

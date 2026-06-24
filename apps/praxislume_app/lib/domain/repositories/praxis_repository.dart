@@ -38,6 +38,7 @@ abstract class PraxisRepository {
   Future<PraxisState> updateContentItem({
     required PraxisState currentState,
     required String id,
-    required String caption,
+    String? caption,
+    List<CarouselSlide>? carouselSlides,
   });
 }

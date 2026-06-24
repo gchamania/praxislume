@@ -145,4 +145,105 @@ class PraxisController extends StateNotifier<PraxisState> {
     );
     return asset;
   }
+
+  Future<List<CarouselSlide>> generateCarouselForItem(
+    String itemId, {
+    int slideCount = 5,
+  }) async {
+    final item = state.items.firstWhere((candidate) => candidate.id == itemId);
+    final slides = _generationClient == null
+        ? _deterministicCarouselSlides(item, slideCount)
+        : await _generationClient.generateCarouselSlides(
+            state: state,
+            item: item,
+            slideCount: slideCount,
+          );
+    state = await _repository.updateContentItem(
+      currentState: state,
+      id: item.id,
+      carouselSlides: slides,
+    );
+    return slides;
+  }
+
+  Future<void> updateCarouselSlide({
+    required String itemId,
+    required int slideNumber,
+    required String headline,
+    required String body,
+    required String visualCue,
+  }) async {
+    final item = state.items.firstWhere((candidate) => candidate.id == itemId);
+    final slides = [
+      for (final slide in item.carouselSlides)
+        if (slide.slideNumber == slideNumber)
+          slide.copyWith(headline: headline, body: body, visualCue: visualCue)
+        else
+          slide,
+    ];
+    state = await _repository.updateContentItem(
+      currentState: state,
+      id: itemId,
+      carouselSlides: slides,
+    );
+  }
+
+  Future<void> saveCarouselSlidesForItem({
+    required String itemId,
+    required List<CarouselSlide> slides,
+  }) async {
+    state = await _repository.updateContentItem(
+      currentState: state,
+      id: itemId,
+      carouselSlides: slides,
+    );
+  }
+
+  List<CarouselSlide> _deterministicCarouselSlides(
+    ContentItem item,
+    int slideCount,
+  ) {
+    final count = slideCount == 7 ? 7 : 5;
+    final clinic = state.clinic;
+    final doctor = state.doctor;
+    final educationCount = count - 3;
+    final points = [
+      item.title,
+      item.caption.split('.').first.trim(),
+      if (clinic?.services.isNotEmpty == true) clinic!.services.first,
+    ].where((point) => point.isNotEmpty).toList();
+    return [
+      CarouselSlide(
+        slideNumber: 1,
+        role: 'cover',
+        headline: item.title,
+        body:
+            '${doctor?.specialty ?? 'Clinic'} education from ${clinic?.name ?? 'your clinic'}.',
+        visualCue: 'Branded cover with clinic colors',
+      ),
+      for (var index = 0; index < educationCount; index++)
+        CarouselSlide(
+          slideNumber: index + 2,
+          role: 'education',
+          headline: points[index % points.length],
+          body:
+              'Simple patient education that avoids guarantees and encourages qualified consultation.',
+          visualCue: 'Clean medical card ${index + 1}',
+        ),
+      CarouselSlide(
+        slideNumber: count - 1,
+        role: 'cta',
+        headline: 'Need clarity?',
+        body: item.shortCta,
+        visualCue: 'Clinic CTA footer',
+      ),
+      CarouselSlide(
+        slideNumber: count,
+        role: 'disclaimer',
+        headline: 'General education',
+        body: state.brandKit.disclaimer,
+        visualCue: 'Disclaimer strip',
+      ),
+    ];
+  }
 }

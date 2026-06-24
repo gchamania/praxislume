@@ -41,4 +41,10 @@ abstract class PraxisGenerationClient {
     required PraxisState state,
     required ContentItem item,
   });
+
+  Future<List<CarouselSlide>> generateCarouselSlides({
+    required PraxisState state,
+    required ContentItem item,
+    required int slideCount,
+  });
 }

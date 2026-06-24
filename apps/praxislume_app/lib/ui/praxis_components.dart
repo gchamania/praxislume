@@ -948,6 +948,12 @@ class _Sidebar extends StatelessWidget {
                       currentRoute: currentRoute,
                     ),
                     _NavItem(
+                      route: '/carousels',
+                      label: 'Carousels',
+                      icon: Icons.view_carousel_outlined,
+                      currentRoute: currentRoute,
+                    ),
+                    _NavItem(
                       route: '/brand',
                       label: 'Brand',
                       icon: Icons.palette_outlined,

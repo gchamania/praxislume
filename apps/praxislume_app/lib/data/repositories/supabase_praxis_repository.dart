@@ -293,6 +293,9 @@ class SupabasePraxisRepository implements PraxisRepository {
             'caption': item.caption,
             'short_cta': item.shortCta,
             'reel_script': item.reelScript,
+            'carousel_slides': [
+              for (final slide in item.carouselSlides) slide.toJson(),
+            ],
             'disclaimer_text': currentState.brandKit.disclaimer,
           },
       ]);
@@ -305,21 +308,37 @@ class SupabasePraxisRepository implements PraxisRepository {
   Future<PraxisState> updateContentItem({
     required PraxisState currentState,
     required String id,
-    required String caption,
+    String? caption,
+    List<CarouselSlide>? carouselSlides,
   }) async {
-    await _client
-        .from('content_items')
-        .update({
-          'caption': caption,
-          'status': 'drafted',
-          'user_edited_at': DateTime.now().toUtc().toIso8601String(),
-        })
-        .eq('id', id);
+    final update = <String, dynamic>{
+      'user_edited_at': DateTime.now().toUtc().toIso8601String(),
+    };
+    if (caption != null) {
+      update['caption'] = caption;
+      update['status'] = 'drafted';
+    }
+    if (carouselSlides != null) {
+      update['carousel_slides'] = [
+        for (final slide in carouselSlides) slide.toJson(),
+      ];
+      update['status'] = 'designed';
+    }
+
+    await _client.from('content_items').update(update).eq('id', id);
     return currentState.copyWith(
       items: [
         for (final item in currentState.items)
           if (item.id == id)
-            item.copyWith(caption: caption, status: 'drafted')
+            item.copyWith(
+              caption: caption,
+              status: carouselSlides != null
+                  ? 'designed'
+                  : caption != null
+                  ? 'drafted'
+                  : item.status,
+              carouselSlides: carouselSlides,
+            )
           else
             item,
       ],
@@ -407,5 +426,17 @@ ContentItem _contentItemFromRow(Map<String, dynamic> row) {
     caption: readText(row, 'caption'),
     shortCta: readText(row, 'short_cta'),
     reelScript: readText(row, 'reel_script'),
+    carouselSlides: _carouselSlidesFromRow(row),
   );
+}
+
+List<CarouselSlide> _carouselSlidesFromRow(Map<String, dynamic> row) {
+  final value = row['carousel_slides'];
+  if (value is! List) {
+    return const [];
+  }
+  return [
+    for (final item in value)
+      if (item is Map) CarouselSlide.fromJson(Map<String, dynamic>.from(item)),
+  ];
 }

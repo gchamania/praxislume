@@ -15,7 +15,7 @@ Tenant-owned records use `clinic_id`. RLS policies check that the authenticated 
 - `clinic_services`: clinic-provided service labels.
 - `specialties`: safe seed list of supported specialties.
 - `content_campaigns`: campaign shell for 7, 15, or 30 days.
-- `content_items`: planned or drafted posts with category, status, copy, CTA, script, and notes.
+- `content_items`: planned or drafted posts with category, status, copy, CTA, script, notes, and v0.3 structured carousel slide JSON.
 - `generated_assets`: references to deterministic future exports, brand previews, and guarded AI thumbnail pilot assets.
 - `ai_generation_logs`: audit trail for every AI generation attempt.
 - `usage_credits`: plan-neutral usage counters.
@@ -36,6 +36,12 @@ must also begin with the clinic UUID, for example
 `<clinic_id>/assets/<content_item_id>-thumbnail.png`. The current allowed
 AI-generated asset type is `ai_generated_thumbnail`, and it is a disabled-by-
 default pilot path rather than core deterministic template output.
+
+v0.3 carousel slide copy is stored on `content_items.carousel_slides` as a
+bounded JSON array. The column inherits the existing `content_items` clinic RLS
+policy, so a clinic owner can read/update only their own carousel slide copy.
+The JSON stores structured slide copy for deterministic rendering, not patient
+case data, freeform design-canvas state, or provider secrets.
 
 ## Migration Rules
 
