@@ -153,11 +153,48 @@ export const complianceReviewResponseSchema = z.object({
   reviewedContentVersionHash: z.string().min(1)
 });
 
+export const visualAssetStyleSchema = z.enum(['clean_medical_abstract']);
+
+const hexColorSchema = z.string().regex(/^#[0-9a-f]{6}$/i);
+
+export const visualAssetGenerationRequestSchema = z.object({
+  clinicId: uuidSchema,
+  contentItemId: uuidSchema.optional(),
+  title: z.string().trim().min(2).max(140),
+  specialty: z.string().trim().min(2).max(120),
+  category: contentCategorySchema,
+  tone: generationToneSchema,
+  brandColors: z.object({
+    primary: hexColorSchema,
+    accent: hexColorSchema
+  }),
+  visualStyle: visualAssetStyleSchema
+});
+
+export const visualAssetGenerationResponseSchema = z.object({
+  assetId: uuidSchema,
+  storagePath: z.string().min(1).max(500),
+  mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp']),
+  width: z.number().int().positive().max(2048),
+  height: z.number().int().positive().max(2048),
+  signedUrl: z.string().url(),
+  expiresInSeconds: z.number().int().positive().max(3600)
+});
+
 const patientDataPatterns: Array<{ code: string; pattern: RegExp }> = [
   { code: 'phone_number', pattern: /(?:\+?\d[\s-]?){10,}/i },
   { code: 'medical_record_number', pattern: /\b(?:mrn|medical record|patient id|uhid)\b/i },
   { code: 'lab_report', pattern: /\b(?:blood report|lab report|scan report|x-ray|mri report|ct report)\b/i },
-  { code: 'case_history', pattern: /\b(?:case history|patient history|my patient|patient named)\b/i }
+  { code: 'case_history', pattern: /\b(?:case history|patient history|my patient|patient named)\b/i },
+  { code: 'before_after_claim', pattern: /\b(?:before and after|before\/after|before\s*&\s*after)\b/i },
+  {
+    code: 'patient_image',
+    pattern: /\b(?:patient photo|patient image|patient face|face photo|portrait of patient)\b/i
+  },
+  {
+    code: 'anatomical_finding',
+    pattern: /\b(?:anatomical finding|x-ray finding|scan finding|wound photo|surgical outcome)\b/i
+  }
 ];
 
 const patientGuardMetadataKeys = new Set([
@@ -206,3 +243,5 @@ export type ReelScriptRequest = z.infer<typeof reelScriptRequestSchema>;
 export type ToneRewriteRequest = z.infer<typeof toneRewriteRequestSchema>;
 export type ComplianceReviewRequest = z.infer<typeof complianceReviewRequestSchema>;
 export type ComplianceReviewResponse = z.infer<typeof complianceReviewResponseSchema>;
+export type VisualAssetGenerationRequest = z.infer<typeof visualAssetGenerationRequestSchema>;
+export type VisualAssetGenerationResponse = z.infer<typeof visualAssetGenerationResponseSchema>;

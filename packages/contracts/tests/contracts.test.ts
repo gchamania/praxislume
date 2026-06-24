@@ -8,7 +8,9 @@ import {
   contentCategorySchema,
   contentStatusSchema,
   generationToneSchema,
-  patientDataGuard
+  patientDataGuard,
+  visualAssetGenerationRequestSchema,
+  visualAssetGenerationResponseSchema
 } from '../src/index.js';
 
 describe('shared contracts', () => {
@@ -40,6 +42,7 @@ describe('shared contracts', () => {
   it('rejects obvious patient-identifiable request text', () => {
     expect(patientDataGuard('Patient phone 9876543210 needs review').ok).toBe(false);
     expect(patientDataGuard('MRN 1234 and blood report attached').ok).toBe(false);
+    expect(patientDataGuard('Before and after acne treatment').ok).toBe(false);
     expect(patientDataGuard('General monsoon skin care awareness').ok).toBe(true);
   });
 
@@ -92,5 +95,40 @@ describe('shared contracts', () => {
     });
 
     expect(parsed.contentVersionHash).toBe('sha256-safe');
+  });
+
+  it('validates safe visual asset generation contracts', () => {
+    const request = visualAssetGenerationRequestSchema.parse({
+      clinicId: '8a66fd06-dadc-4bdb-966a-2c701f74a287',
+      contentItemId: '11111111-1111-4111-8111-111111111111',
+      title: 'Sinus care basics',
+      specialty: 'ENT',
+      category: 'awareness',
+      tone: 'simple',
+      brandColors: {
+        primary: '#0D4D57',
+        accent: '#F2C15E'
+      },
+      visualStyle: 'clean_medical_abstract'
+    });
+    const response = visualAssetGenerationResponseSchema.parse({
+      assetId: '22222222-2222-4222-8222-222222222222',
+      storagePath: '8a66fd06-dadc-4bdb-966a-2c701f74a287/assets/11111111-1111-4111-8111-111111111111-thumbnail.png',
+      mimeType: 'image/png',
+      width: 1024,
+      height: 1024,
+      signedUrl: 'https://storage.example.test/signed/asset.png',
+      expiresInSeconds: 300
+    });
+
+    expect(request.visualStyle).toBe('clean_medical_abstract');
+    expect(response.storagePath).toContain('/assets/');
+    expect(() =>
+      visualAssetGenerationRequestSchema.parse({
+        ...request,
+        title: 'Patient phone 9876543210 before and after',
+        visualStyle: 'patient_face'
+      })
+    ).toThrow();
   });
 });

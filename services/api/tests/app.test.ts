@@ -428,6 +428,284 @@ describe('PraxisLume API', () => {
     expect(generationStore.entries[0].promptHash).toMatch(/^[a-f0-9]{64}$/);
   });
 
+  it('adds DeepSeek request controls to OpenAI-compatible text calls', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                items: [campaignPlanItem({ dayOffset: 0, title: 'DeepSeek ENT plan item' })]
+              })
+            }
+          }
+        ],
+        usage: { prompt_tokens: 121, completion_tokens: 242 }
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const app = buildApp({
+      env: {
+        ...env,
+        CAMPAIGN_PLAN_PROVIDER: 'openai_compatible',
+        OPENAI_COMPATIBLE_BASE_URL: 'https://api.deepseek.com',
+        OPENAI_COMPATIBLE_API_KEY: 'server-only-deepseek-key',
+        OPENAI_COMPATIBLE_CAMPAIGN_MODEL: 'deepseek-v4-pro',
+        OPENAI_COMPATIBLE_THINKING: 'disabled',
+        OPENAI_COMPATIBLE_REASONING_EFFORT: 'high'
+      },
+      allowTestTokens: true
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/campaign-plan',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: liveCampaignPayload()
+    });
+
+    expect(response.statusCode).toBe(200);
+    const [, request] = fetchMock.mock.calls[0];
+    expect(JSON.parse(request.body)).toMatchObject({
+      model: 'deepseek-v4-pro',
+      thinking: { type: 'disabled' },
+      reasoning_effort: 'high',
+      response_format: { type: 'json_object' }
+    });
+  });
+
+  it('rejects visual asset generation while the image pilot is disabled and logs the blocked attempt', async () => {
+    const generationStore = new RecordingGenerationStore();
+    const app = buildApp({ env, allowTestTokens: true, generationStore });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: visualAssetPayload()
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: { code: 'forbidden', message: 'Image generation is disabled' }
+    });
+    expect(generationStore.reserveCalls).toBe(0);
+    expect(generationStore.entries).toEqual([
+      expect.objectContaining({
+        generationType: 'visual_asset',
+        provider: 'fake',
+        status: 'blocked',
+        errorCategory: 'feature_disabled'
+      })
+    ]);
+  });
+
+  it('stores fake visual assets and records output references when the image pilot is enabled', async () => {
+    const generationStore = new RecordingGenerationStore();
+    const assetStore = new RecordingGeneratedAssetStore();
+    const app = buildApp({
+      env: {
+        ...env,
+        IMAGE_GENERATION_ENABLED: 'true',
+        IMAGE_PROVIDER: 'fake',
+        IMAGE_COMPATIBLE_MODEL: 'fake-image-v1'
+      },
+      allowTestTokens: true,
+      generationStore,
+      assetStore
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: visualAssetPayload()
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toMatchObject({
+      assetId: '33333333-3333-4333-8333-333333333333',
+      mimeType: 'image/png',
+      width: 1024,
+      height: 1024,
+      signedUrl: 'https://storage.example.test/signed/asset.png',
+      expiresInSeconds: 300
+    });
+    expect(response.json().data.storagePath).toMatch(
+      /^8a66fd06-dadc-4bdb-966a-2c701f74a287\/assets\/11111111-1111-4111-8111-111111111111-thumbnail\.png$/
+    );
+    expect(assetStore.entries[0]).toEqual(
+      expect.objectContaining({
+        clinicId: '8a66fd06-dadc-4bdb-966a-2c701f74a287',
+        contentItemId: '11111111-1111-4111-8111-111111111111',
+        assetType: 'ai_generated_thumbnail',
+        mimeType: 'image/png'
+      })
+    );
+    expect(generationStore.entries[0]).toEqual(
+      expect.objectContaining({
+        generationType: 'visual_asset',
+        provider: 'fake',
+        model: 'fake-image-v1',
+        status: 'succeeded',
+        outputReferenceId: '33333333-3333-4333-8333-333333333333'
+      })
+    );
+  });
+
+  it('rejects patient-identifiable visual asset inputs before quota or provider calls', async () => {
+    const generationStore = new RecordingGenerationStore();
+    const app = buildApp({
+      env: { ...env, IMAGE_GENERATION_ENABLED: 'true', IMAGE_PROVIDER: 'fake' },
+      allowTestTokens: true,
+      generationStore
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: {
+        ...visualAssetPayload(),
+        title: 'Patient phone 9876543210 before and after'
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(generationStore.reserveCalls).toBe(0);
+    expect(generationStore.entries[0]).toEqual(
+      expect.objectContaining({
+        generationType: 'visual_asset',
+        status: 'blocked',
+        errorCategory: 'patient_data_rejected'
+      })
+    );
+  });
+
+  it('rejects before-after visual asset requests before quota or provider calls', async () => {
+    const generationStore = new RecordingGenerationStore();
+    const app = buildApp({
+      env: { ...env, IMAGE_GENERATION_ENABLED: 'true', IMAGE_PROVIDER: 'fake' },
+      allowTestTokens: true,
+      generationStore
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: {
+        ...visualAssetPayload(),
+        title: 'Before and after acne treatment'
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(generationStore.reserveCalls).toBe(0);
+    expect(generationStore.entries[0]).toEqual(
+      expect.objectContaining({
+        generationType: 'visual_asset',
+        status: 'blocked',
+        errorCategory: 'patient_data_rejected'
+      })
+    );
+  });
+
+  it('rejects visual asset generation when quota is exhausted before provider calls', async () => {
+    const generationStore = new RecordingGenerationStore({ quotaAllowed: false });
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const app = buildApp({
+      env: liveImageEnv(),
+      allowTestTokens: true,
+      generationStore
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: visualAssetPayload()
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(generationStore.entries[0]).toEqual(
+      expect.objectContaining({
+        generationType: 'visual_asset',
+        provider: 'openai_compatible',
+        status: 'blocked',
+        errorCategory: 'quota_exceeded'
+      })
+    );
+  });
+
+  it('records visual asset provider failures without returning provider internals', async () => {
+    const generationStore = new RecordingGenerationStore();
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ error: { message: 'image provider exploded' } }, 500)));
+    const app = buildApp({
+      env: liveImageEnv(),
+      allowTestTokens: true,
+      generationStore,
+      assetStore: new RecordingGeneratedAssetStore()
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: visualAssetPayload()
+    });
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: { code: 'provider_error', message: 'Generation provider failed' }
+    });
+    expect(generationStore.entries[0]).toEqual(
+      expect.objectContaining({
+        generationType: 'visual_asset',
+        provider: 'openai_compatible',
+        model: 'deepseek-image-pilot',
+        status: 'failed',
+        errorCategory: 'provider_error'
+      })
+    );
+  });
+
+  it('maps visual asset provider timeouts to provider_timeout', async () => {
+    const generationStore = new RecordingGenerationStore();
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(Object.assign(new Error('aborted upstream'), { name: 'AbortError' })));
+    const app = buildApp({
+      env: liveImageEnv(),
+      allowTestTokens: true,
+      generationStore,
+      assetStore: new RecordingGeneratedAssetStore()
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: visualAssetPayload()
+    });
+
+    expect(response.statusCode).toBe(504);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: { code: 'provider_timeout', message: 'Generation provider timed out' }
+    });
+    expect(generationStore.entries[0]).toEqual(
+      expect.objectContaining({
+        generationType: 'visual_asset',
+        provider: 'openai_compatible',
+        status: 'failed',
+        errorCategory: 'provider_timeout'
+      })
+    );
+  });
+
   it('repairs invalid OpenAI-compatible campaign JSON once before succeeding', async () => {
     const fetchMock = vi
       .fn()
@@ -869,6 +1147,33 @@ function liveCampaignPayload() {
   };
 }
 
+function visualAssetPayload() {
+  return {
+    clinicId: '8a66fd06-dadc-4bdb-966a-2c701f74a287',
+    contentItemId: '11111111-1111-4111-8111-111111111111',
+    title: 'Sinus care basics',
+    specialty: 'ENT',
+    category: 'awareness',
+    tone: 'simple',
+    brandColors: {
+      primary: '#0D4D57',
+      accent: '#F2C15E'
+    },
+    visualStyle: 'clean_medical_abstract'
+  };
+}
+
+function liveImageEnv() {
+  return {
+    ...env,
+    IMAGE_GENERATION_ENABLED: 'true',
+    IMAGE_PROVIDER: 'openai_compatible',
+    IMAGE_COMPATIBLE_BASE_URL: 'https://images.example.test/v1',
+    IMAGE_COMPATIBLE_API_KEY: 'server-only-image-key',
+    IMAGE_COMPATIBLE_MODEL: 'deepseek-image-pilot'
+  };
+}
+
 function qualityCampaignItems(specialty: string) {
   return Array.from({ length: 30 }, (_, index) => ({
     ...campaignPlanItem({
@@ -922,6 +1227,23 @@ class RecordingGenerationStore {
 
   async recordGeneration(entry: Record<string, unknown>) {
     this.entries.push(entry);
+  }
+}
+
+class RecordingGeneratedAssetStore {
+  readonly entries: Array<Record<string, unknown>> = [];
+
+  async saveVisualAsset(entry: Record<string, unknown>) {
+    this.entries.push(entry);
+    return {
+      assetId: '33333333-3333-4333-8333-333333333333',
+      storagePath: `${entry.clinicId}/assets/${entry.contentItemId}-thumbnail.png`,
+      mimeType: entry.mimeType,
+      width: entry.width,
+      height: entry.height,
+      signedUrl: 'https://storage.example.test/signed/asset.png',
+      expiresInSeconds: 300
+    };
   }
 }
 

@@ -26,6 +26,27 @@ values
   ('clinic-logos', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/logo.png', '22222222-2222-2222-2222-222222222222', '{}'::jsonb)
 on conflict (bucket_id, name) do nothing;
 
+insert into storage.objects (bucket_id, name, owner, metadata)
+values
+  ('generated-assets', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/assets/private-thumbnail.png', '22222222-2222-2222-2222-222222222222', '{}'::jsonb)
+on conflict (bucket_id, name) do nothing;
+
+insert into public.generated_assets (
+  id,
+  clinic_id,
+  asset_type,
+  storage_path,
+  metadata
+)
+values (
+  'ffffffff-ffff-ffff-ffff-ffffffffffff',
+  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+  'ai_generated_thumbnail',
+  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/assets/private-thumbnail.png',
+  '{}'::jsonb
+)
+on conflict (id) do nothing;
+
 set local role service_role;
 
 insert into public.ai_generation_logs (
@@ -81,6 +102,21 @@ values (
   'rules'
 );
 
+insert into public.generated_assets (
+  id,
+  clinic_id,
+  asset_type,
+  storage_path,
+  metadata
+)
+values (
+  'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+  'ai_generated_thumbnail',
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/assets/service-role-thumbnail.png',
+  '{"source": "rls_service_role_check"}'::jsonb
+);
+
 reset role;
 
 set local role authenticated;
@@ -91,8 +127,12 @@ declare
   visible_clinics integer;
   visible_b_campaigns integer;
   changed_b_campaigns integer;
+  visible_b_assets integer;
+  changed_b_assets integer;
   visible_b_logos integer;
   changed_b_logos integer;
+  visible_b_generated_asset_objects integer;
+  changed_b_generated_asset_objects integer;
 begin
   select count(*) into visible_clinics from public.clinics;
   if visible_clinics <> 1 then
@@ -114,6 +154,36 @@ begin
   get diagnostics changed_b_campaigns = row_count;
   if changed_b_campaigns <> 0 then
     raise exception 'Owner A can update Clinic B campaigns';
+  end if;
+
+  insert into public.generated_assets (
+    clinic_id,
+    asset_type,
+    storage_path,
+    metadata
+  )
+  values (
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    'ai_generated_thumbnail',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/assets/owner-a-thumbnail.png',
+    '{}'::jsonb
+  );
+
+  select count(*) into visible_b_assets
+  from public.generated_assets
+  where clinic_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+
+  if visible_b_assets <> 0 then
+    raise exception 'Owner A can see Clinic B generated asset rows';
+  end if;
+
+  update public.generated_assets
+  set metadata = '{"compromised": true}'::jsonb
+  where clinic_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+
+  get diagnostics changed_b_assets = row_count;
+  if changed_b_assets <> 0 then
+    raise exception 'Owner A can update Clinic B generated asset rows';
   end if;
 
   insert into storage.objects (bucket_id, name, owner, metadata)
@@ -141,6 +211,33 @@ begin
   get diagnostics changed_b_logos = row_count;
   if changed_b_logos <> 0 then
     raise exception 'Owner A can update Clinic B logo objects';
+  end if;
+
+  insert into storage.objects (bucket_id, name, owner, metadata)
+  values (
+    'generated-assets',
+    'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/assets/owner-a-thumbnail.png',
+    auth.uid(),
+    '{}'::jsonb
+  );
+
+  select count(*) into visible_b_generated_asset_objects
+  from storage.objects
+  where bucket_id = 'generated-assets'
+    and name = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/assets/private-thumbnail.png';
+
+  if visible_b_generated_asset_objects <> 0 then
+    raise exception 'Owner A can see Clinic B generated asset objects';
+  end if;
+
+  update storage.objects
+  set metadata = '{"compromised": true}'::jsonb
+  where bucket_id = 'generated-assets'
+    and name = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/assets/private-thumbnail.png';
+
+  get diagnostics changed_b_generated_asset_objects = row_count;
+  if changed_b_generated_asset_objects <> 0 then
+    raise exception 'Owner A can update Clinic B generated asset objects';
   end if;
 end $$;
 

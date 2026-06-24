@@ -102,10 +102,32 @@ CAPTION_PROVIDER=openai_compatible
 REEL_SCRIPT_PROVIDER=openai_compatible
 TONE_REWRITE_PROVIDER=openai_compatible
 OPENAI_COMPATIBLE_COPY_MODEL=<copy-model>
+OPENAI_COMPATIBLE_THINKING=disabled
+OPENAI_COMPATIBLE_REASONING_EFFORT=high
 ```
 
 `OPENAI_COMPATIBLE_BASE_URL` can point at a direct provider API, LiteLLM Proxy,
 or Vercel AI Gateway. See `docs/AI_ROUTING.md`.
+
+For the DeepSeek Day 3 pilot, set:
+
+```env
+OPENAI_COMPATIBLE_BASE_URL=https://api.deepseek.com
+OPENAI_COMPATIBLE_CAMPAIGN_MODEL=deepseek-v4-pro
+OPENAI_COMPATIBLE_COPY_MODEL=deepseek-v4-flash
+```
+
+The image-generation pilot is disabled by default:
+
+```env
+IMAGE_GENERATION_ENABLED=false
+IMAGE_PROVIDER=fake
+IMAGE_GENERATION_DAILY_LIMIT=5
+```
+
+Only enable `IMAGE_GENERATION_ENABLED=true` on the backend after a compatible
+image endpoint, model, and server-only key are supplied. Flutter must never
+receive image provider keys.
 
 ## Verification
 

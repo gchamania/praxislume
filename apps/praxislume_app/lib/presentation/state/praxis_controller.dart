@@ -13,15 +13,18 @@ class PraxisController extends StateNotifier<PraxisState> {
     PraxisRepository? repository,
     PraxisGenerationClient? generationClient,
     CampaignPackageGenerator? campaignPackageGenerator,
+    PraxisState? initialState,
   }) : _repository = repository ?? InMemoryPraxisRepository(),
        _generationClient = generationClient,
        _campaignPackageGenerator =
            campaignPackageGenerator ?? const CampaignPackageGenerator(),
-       super(PraxisState.initial());
+       super(initialState ?? PraxisState.initial());
 
   final PraxisRepository _repository;
   final PraxisGenerationClient? _generationClient;
   final CampaignPackageGenerator _campaignPackageGenerator;
+
+  bool get hasGenerationClient => _generationClient != null;
 
   Future<void> load() async {
     state = await _repository.load();
@@ -120,5 +123,26 @@ class PraxisController extends StateNotifier<PraxisState> {
       fileExtension: fileExtension,
       contentType: contentType,
     );
+  }
+
+  Future<GeneratedVisualAsset?> generateVisualAssetForItem(
+    String itemId,
+  ) async {
+    final generationClient = _generationClient;
+    if (generationClient == null) {
+      return null;
+    }
+    final item = state.items.firstWhere((candidate) => candidate.id == itemId);
+    final asset = await generationClient.generateVisualAsset(
+      state: state,
+      item: item,
+    );
+    state = state.copyWith(
+      visualAssetsByContentId: {
+        ...state.visualAssetsByContentId,
+        item.id: asset,
+      },
+    );
+    return asset;
   }
 }

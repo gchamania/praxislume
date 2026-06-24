@@ -19,6 +19,8 @@ class ContentDetailScreen extends ConsumerStatefulWidget {
 class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
   late final TextEditingController _caption;
   bool _postPackageCopied = false;
+  bool _thumbnailGenerating = false;
+  String? _thumbnailError;
 
   @override
   void initState() {
@@ -42,6 +44,10 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
         .watch(praxisProvider)
         .items
         .firstWhere((candidate) => candidate.id == widget.itemId);
+    final asset = ref.watch(praxisProvider).visualAssetsByContentId[item.id];
+    final canGenerateThumbnail = ref
+        .read(praxisProvider.notifier)
+        .hasGenerationClient;
     return WorkspaceShell(
       title: item.title,
       subtitle: 'Review, edit and manually export this content package.',
@@ -135,6 +141,55 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                 Text('CTA: ${item.shortCta}'),
                 const SizedBox(height: 8),
                 Text(item.reelScript),
+                const SizedBox(height: 16),
+                if (asset == null)
+                  _ThumbnailGenerationPanel(
+                    enabled: canGenerateThumbnail,
+                    loading: _thumbnailGenerating,
+                    error: _thumbnailError,
+                    onGenerate: canGenerateThumbnail
+                        ? () async {
+                            setState(() {
+                              _thumbnailGenerating = true;
+                              _thumbnailError = null;
+                            });
+                            try {
+                              final generated = await ref
+                                  .read(praxisProvider.notifier)
+                                  .generateVisualAssetForItem(item.id);
+                              if (!context.mounted) {
+                                return;
+                              }
+                              if (generated == null) {
+                                setState(
+                                  () => _thumbnailError =
+                                      'AI thumbnail generation requires backend API.',
+                                );
+                                return;
+                              }
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('AI thumbnail ready'),
+                                ),
+                              );
+                            } catch (_) {
+                              if (!context.mounted) {
+                                return;
+                              }
+                              setState(
+                                () => _thumbnailError =
+                                    'AI thumbnail unavailable. Try again after checking API settings.',
+                              );
+                            } finally {
+                              if (mounted) {
+                                setState(() => _thumbnailGenerating = false);
+                              }
+                            }
+                          }
+                        : null,
+                  )
+                else
+                  _GeneratedThumbnailPreview(signedUrl: asset.signedUrl),
               ],
             ),
           );
@@ -153,6 +208,86 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+class _ThumbnailGenerationPanel extends StatelessWidget {
+  const _ThumbnailGenerationPanel({
+    required this.enabled,
+    required this.loading,
+    required this.onGenerate,
+    this.error,
+  });
+
+  final bool enabled;
+  final bool loading;
+  final VoidCallback? onGenerate;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!enabled) {
+      return const PreviewOnlyBanner(
+        message: 'AI thumbnail generation requires backend API.',
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OutlinedButton.icon(
+          key: const Key('generateThumbnailButton'),
+          onPressed: loading ? null : onGenerate,
+          icon: loading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.image_outlined),
+          label: Text(
+            loading ? 'Generating thumbnail' : 'Generate safe thumbnail',
+          ),
+        ),
+        if (error != null) ...[
+          const SizedBox(height: 8),
+          Text(error!, style: Theme.of(context).textTheme.bodySmall),
+        ],
+      ],
+    );
+  }
+}
+
+class _GeneratedThumbnailPreview extends StatelessWidget {
+  const _GeneratedThumbnailPreview({required this.signedUrl});
+
+  final String signedUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const PraxisChip(label: 'AI thumbnail ready', icon: Icons.check),
+        const SizedBox(height: 10),
+        ClipRRect(
+          key: const Key('generatedThumbnailPreview'),
+          borderRadius: BorderRadius.circular(8),
+          child: AspectRatio(
+            aspectRatio: 1,
+            child: Image.network(
+              signedUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                alignment: Alignment.center,
+                child: const Icon(Icons.image_outlined),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

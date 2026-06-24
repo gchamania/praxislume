@@ -357,19 +357,27 @@ class OpenAICompatibleProvider {
     const timeout = setTimeout(() => controller.abort(), this.config.GENERATION_TIMEOUT_MS);
 
     try {
+      const requestBody: Record<string, unknown> = {
+        model,
+        messages,
+        response_format: { type: 'json_object' },
+        temperature: 0.3,
+        stream: false
+      };
+      if (this.config.OPENAI_COMPATIBLE_THINKING) {
+        requestBody.thinking = { type: this.config.OPENAI_COMPATIBLE_THINKING };
+      }
+      if (this.config.OPENAI_COMPATIBLE_REASONING_EFFORT) {
+        requestBody.reasoning_effort = this.config.OPENAI_COMPATIBLE_REASONING_EFFORT;
+      }
+
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           authorization: `Bearer ${this.apiKey}`,
           'content-type': 'application/json'
         },
-        body: JSON.stringify({
-          model,
-          messages,
-          response_format: { type: 'json_object' },
-          temperature: 0.3,
-          stream: false
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal
       });
 

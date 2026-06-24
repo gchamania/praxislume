@@ -16,7 +16,7 @@ Tenant-owned records use `clinic_id`. RLS policies check that the authenticated 
 - `specialties`: safe seed list of supported specialties.
 - `content_campaigns`: campaign shell for 7, 15, or 30 days.
 - `content_items`: planned or drafted posts with category, status, copy, CTA, script, and notes.
-- `generated_assets`: references to deterministic future exports or storage assets.
+- `generated_assets`: references to deterministic future exports, brand previews, and guarded AI thumbnail pilot assets.
 - `ai_generation_logs`: audit trail for every AI generation attempt.
 - `usage_credits`: plan-neutral usage counters.
 - `content_compliance_reviews`: rules/model review records tied to content hashes.
@@ -30,6 +30,12 @@ RLS policies must be paired with explicit grants for the `authenticated` role. W
 Server-managed tables also need explicit `service_role` grants for backend API persistence. The API uses the service role only on the server to write `ai_generation_logs`, reserve/update `usage_credits`, and write `content_compliance_reviews`; Flutter must never receive the service-role key.
 
 Logo storage uses the `clinic-logos` bucket. Object names must begin with the clinic UUID, for example `<clinic_id>/logo.png`. Storage policies must qualify `storage.objects.name` inside subqueries so the folder check cannot accidentally resolve to `clinics.name`.
+
+Generated visual assets use the private `generated-assets` bucket. Object names
+must also begin with the clinic UUID, for example
+`<clinic_id>/assets/<content_item_id>-thumbnail.png`. The current allowed
+AI-generated asset type is `ai_generated_thumbnail`, and it is a disabled-by-
+default pilot path rather than core deterministic template output.
 
 ## Migration Rules
 

@@ -191,6 +191,26 @@ class ComplianceReviewDraft {
   final String? saferRewrite;
 }
 
+class GeneratedVisualAsset {
+  const GeneratedVisualAsset({
+    required this.assetId,
+    required this.storagePath,
+    required this.mimeType,
+    required this.width,
+    required this.height,
+    required this.signedUrl,
+    required this.expiresInSeconds,
+  });
+
+  final String assetId;
+  final String storagePath;
+  final String mimeType;
+  final int width;
+  final int height;
+  final String signedUrl;
+  final int expiresInSeconds;
+}
+
 class PraxisState {
   const PraxisState({
     required this.isAuthenticated,
@@ -199,6 +219,7 @@ class PraxisState {
     this.doctor,
     this.campaign,
     this.items = const [],
+    this.visualAssetsByContentId = const {},
   });
 
   factory PraxisState.initial() {
@@ -222,6 +243,7 @@ class PraxisState {
   final BrandKit brandKit;
   final ContentCampaign? campaign;
   final List<ContentItem> items;
+  final Map<String, GeneratedVisualAsset> visualAssetsByContentId;
 
   bool get onboardingComplete => clinic != null && doctor != null;
 
@@ -232,6 +254,7 @@ class PraxisState {
     BrandKit? brandKit,
     ContentCampaign? campaign,
     List<ContentItem>? items,
+    Map<String, GeneratedVisualAsset>? visualAssetsByContentId,
   }) {
     return PraxisState(
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
@@ -240,6 +263,8 @@ class PraxisState {
       brandKit: brandKit ?? this.brandKit,
       campaign: campaign ?? this.campaign,
       items: items ?? this.items,
+      visualAssetsByContentId:
+          visualAssetsByContentId ?? this.visualAssetsByContentId,
     );
   }
 }

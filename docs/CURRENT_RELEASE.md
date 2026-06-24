@@ -49,6 +49,11 @@ Excluded:
 - CRM workflows.
 - Advanced analytics.
 
+Pilot exception: Day 3 includes a disabled-by-default backend visual asset route
+for safe abstract thumbnails. It remains outside MVP core, requires explicit
+server env enablement, and must not be exposed as a Canva-style editor, avatar,
+video, or patient-image workflow.
+
 ## Light v0.2
 
 Included:

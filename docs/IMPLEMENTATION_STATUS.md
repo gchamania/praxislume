@@ -1,6 +1,6 @@
 # PraxisLume Implementation Status
 
-Last inspected: 2026-06-23
+Last inspected: 2026-06-24
 
 ## Repository State
 
@@ -8,7 +8,7 @@ PraxisLume is an initialized Git repository with a runnable foundation for v0.1 
 
 - Git repository: initialized in `C:\codex_experiments\PraxisLume`.
 - Git remote: `origin` points to `https://github.com/gchamania/praxislume.git`.
-- Current implementation branch: `codex/pl-ui-prototype-parity`.
+- Current implementation branch: `codex/pl-deepseek-ai-pilot`.
 - Docs: canonical docs are populated and duplicate `docs/PraxisLume_*.md` files have been removed.
 - Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, clean architecture folders, Day 2 mockup-inspired visual foundations, prototype-parity MVP workspace routes, widget tests, controller tests, and an architecture boundary test.
 - Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake and OpenAI-compatible provider routing, Supabase-backed generation/quota/compliance stores, and tests.
@@ -79,15 +79,18 @@ API and contracts:
 - `services/api/src/config.ts`
 - `services/api/src/envelope.ts`
 - `services/api/src/fakeProvider.ts`
+- `services/api/src/assetStore.ts`
 - `services/api/src/generationProvider.ts`
 - `services/api/src/generationLog.ts`
 - `services/api/src/index.ts`
+- `services/api/src/visualAssetProvider.ts`
 - `services/api/tests/app.test.ts`
 
 Supabase:
 
 - `supabase/config.toml`
 - `supabase/migrations/202606220001_initial_mvp_schema.sql`
+- `supabase/migrations/202606240001_generated_visual_assets.sql`
 - `supabase/seed.sql`
 - `supabase/tests/rls_cross_clinic.sql`
 
@@ -104,12 +107,13 @@ Known missing or deferred implementation areas:
 - Flutter native mobile runner folders such as `android/` and `ios/` have not been generated yet; current runner support is web.
 - Flutter still uses an in-memory repository for demo mode and tests when no Supabase session exists.
 - API Supabase persistence has adapter coverage and has passed a real local smoke test with Supabase Auth JWTs and the service-role key.
-- Real LLM provider credentials, staging secrets, and optional live smoke are not configured in the repository. The backend now supports OpenAI-compatible routing, while fake remains the default local provider.
+- Real LLM provider credentials, staging secrets, and optional live smoke are not configured in the repository. The backend now supports OpenAI-compatible DeepSeek text routing, while fake remains the default local provider.
+- Live image-provider credentials and exact live image endpoint/model are not configured. The visual asset route remains disabled by default and fake-provider testable.
 - Production deployment, monitoring, and staging secrets are not configured.
 
 ## Current Version Target
 
-Implemented target: Foundation v0.0, MVP v0.1 prototype, light v0.2 brand kit foundation, Sprint 10-12 backend live-AI routing foundation, Flutter clean-architecture refactor, and UI/UX prototype parity for the current MVP routes.
+Implemented target: Foundation v0.0, MVP v0.1 prototype, light v0.2 brand kit foundation, Sprint 10-12 backend live-AI routing foundation, Flutter clean-architecture refactor, UI/UX prototype parity for the current MVP routes, and Day 3 DeepSeek AI pilot wiring.
 
 Still enforced:
 
@@ -119,6 +123,7 @@ Still enforced:
 - Patient-identifiable generation input is rejected by shared/API guards.
 - Visual output remains deterministic; v0.2 includes a brand preview, not a design canvas.
 - Live AI remains backend-only and route-gated; fake generation stays available for deterministic local/pilot smoke.
+- AI image generation is not MVP core. The only image-related path is a disabled-by-default backend visual asset pilot for safe abstract thumbnails.
 
 ## Completed
 
@@ -189,6 +194,15 @@ Still enforced:
 - Upgraded dashboard, generate content, calendar, content library, brand settings, settings, templates, analytics, and media studio screens toward the `stitch_web_layout_prototypes` visual language.
 - Added working library search/status/category/sort controls, a weekly calendar review layout, visible Day 1 review action, richer brand-kit tabs, and full preview-only deferred surfaces for Templates, Analytics, and Media Studio.
 - Preserved disabled/deferred states for social publishing, avatar/video generation, analytics engine, template marketplace, CRM, and automation surfaces.
+- Added DeepSeek-oriented live text routing controls to the existing OpenAI-compatible backend adapter, including optional `OPENAI_COMPATIBLE_THINKING` and `OPENAI_COMPATIBLE_REASONING_EFFORT`.
+- Documented the Day 3 DeepSeek text setup using `deepseek-v4-pro` for campaign planning and `deepseek-v4-flash` for copy routes, with fake provider remaining the default.
+- Added shared visual asset request/response contracts for safe abstract medical thumbnails.
+- Added `POST /v1/generations/visual-asset` as a backend-only, disabled-by-default image pilot route with Supabase JWT auth, patient-data rejection, usage reservation, provider failure/timeout handling, generated asset storage, and `ai_generation_logs` audit rows.
+- Added API visual asset fake provider support plus an OpenAI-compatible image endpoint adapter gated by server-only image env vars.
+- Added Supabase migration `202606240001_generated_visual_assets.sql` for the private `generated-assets` bucket, `ai_generated_thumbnail` asset type, service-role generated-asset writes, and ownership policies.
+- Expanded Supabase RLS verification to cover generated asset rows and `generated-assets` object isolation.
+- Added Flutter API client/controller/content-detail support for “Generate safe thumbnail,” rendering only backend-returned signed asset URLs and showing an honest disabled state when no backend generation client is configured.
+- Updated server-only env examples and canonical docs for DeepSeek text routing and the conditional image-generation pilot.
 
 ## In Progress
 
@@ -211,7 +225,38 @@ Still enforced:
    - Run an optional live-provider smoke behind the existing OpenAI-compatible backend adapter with real staging secrets supplied outside Git.
    - Keep fake provider as default and keep all provider keys server-only.
 
+4. DeepSeek live smoke agent
+   - With a server-only DeepSeek key, run live text smoke for campaign plan, caption, reel script, and tone rewrite using the documented DeepSeek models.
+   - Run visual asset live smoke only after an exact compatible image endpoint and model are supplied; otherwise keep `IMAGE_GENERATION_ENABLED=false`.
+
 ## Verification Results
+
+Current Day 3 DeepSeek AI pilot verification on `codex/pl-deepseek-ai-pilot`:
+
+- Baseline `flutter test` exited 0 with 13 regular tests passing and 1 local Supabase/API smoke test skipped because dart defines were not provided.
+- Baseline `npm.cmd test` initially failed because Node workspace dependencies were not installed in this linked worktree; `npm.cmd install` restored local workspace binaries.
+- Baseline `npm.cmd test` then exited 0 with 6 contract tests and 21 API tests passing.
+- TDD red checks failed as expected on missing visual asset schemas, missing DeepSeek request controls, missing `/v1/generations/visual-asset`, and missing Flutter thumbnail model/controller/UI.
+- `npm.cmd run test:contracts -- --run tests/contracts.test.ts` exited 0 with 7 contract tests passing after implementation.
+- `npm.cmd run test:api -- --run tests/app.test.ts` exited 0 with 29 API tests passing after implementation, including before/after visual request rejection before quota/provider calls.
+- `flutter test test/app_test.dart` exited 0 with 8 widget tests passing after implementation.
+- `dart format .` in `apps/praxislume_app` formatted the affected Flutter files.
+- `dart format --set-exit-if-changed .` in `apps/praxislume_app` exited 0 with 0 files changed.
+- `npm.cmd run lint` exited 0.
+- `npm.cmd run typecheck` exited 0.
+- `npm.cmd test` exited 0 with 7 contract tests and 29 API tests passing.
+- `npm.cmd run build` exited 0.
+- `npm.cmd run docs:check` exited 0.
+- `flutter analyze` exited 0 with no issues.
+- `flutter test` exited 0 with 14 regular tests passing and 1 local Supabase/API smoke test skipped because dart defines were not provided.
+- `npx.cmd supabase migration up` applied `202606240001_generated_visual_assets.sql` to the local Supabase database.
+- `npm.cmd run supabase:test:rls` exited 0 after verifying generated asset row/object cross-clinic isolation.
+- `flutter build web` exited 0 and built `build\web`.
+- Flutter secret scan for provider/service-role key patterns returned no matches; `rg` exited 1 because nothing was found.
+- Optional live DeepSeek smoke was not run because no real server-only DeepSeek key was supplied in this repository.
+- Optional live image smoke was not run because no exact compatible image endpoint/model/key was supplied; `IMAGE_GENERATION_ENABLED` remains false by default.
+
+Source-of-truth reconciliation: the Day 3 DeepSeek AI pilot remains aligned with `docs/SOURCE_OF_TRUTH.md`. Text generation stays backend-gated and provider keys remain server-only. The visual asset route is disabled by default, safe-abstract-only, audited, quota-gated, and separate from the MVP core; it does not add a Canva-style editor, social publishing, avatar/video generation, CRM workflow, diagnosis workflow, patient-image workflow, or patient-identifiable prompt fields.
 
 Current UI/UX prototype parity verification on `codex/pl-ui-prototype-parity`:
 

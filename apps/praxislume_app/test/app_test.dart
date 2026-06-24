@@ -1,6 +1,10 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:praxislume_app/main.dart';
+import 'package:praxislume_app/presentation/screens/content/content_detail_screen.dart';
 
 void main() {
   testWidgets('routes anonymous users to sign in', (tester) async {
@@ -135,6 +139,46 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('Post package copied'), findsOneWidget);
+    expect(
+      find.text('AI thumbnail generation requires backend API.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('shows generated AI thumbnail returned by the backend client', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1600);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final repository = RecordingPraxisRepository(
+      initialState: _contentDetailState(),
+    );
+    final generationClient = RecordingGenerationClient();
+    final controller = PraxisController(
+      repository: repository,
+      generationClient: generationClient,
+      initialState: _contentDetailState(),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [praxisProvider.overrideWith((ref) => controller)],
+        child: const MaterialApp(home: ContentDetailScreen(itemId: 'item-1')),
+      ),
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const Key('generateThumbnailButton')),
+    );
+    await tester.tap(find.byKey(const Key('generateThumbnailButton')));
+    await tester.pumpAndSettle();
+
+    expect(generationClient.visualAssetCalls, 1);
+    expect(find.text('AI thumbnail ready'), findsWidgets);
+    expect(find.byKey(const Key('generatedThumbnailPreview')), findsOneWidget);
   });
 
   testWidgets('saves brand kit and shows deterministic preview', (
@@ -293,4 +337,189 @@ Future<void> _tapWorkspaceNav(WidgetTester tester, String label) async {
   final navItem = find.widgetWithText(InkWell, label).last;
   await tester.ensureVisible(navItem);
   await tester.tap(navItem);
+}
+
+class RecordingGenerationClient implements PraxisGenerationClient {
+  int visualAssetCalls = 0;
+
+  @override
+  Future<List<GeneratedCampaignPlanItem>> generateCampaignPlan({
+    required PraxisState state,
+    required int durationDays,
+  }) async {
+    return const [];
+  }
+
+  @override
+  Future<CaptionDraft> generateCaption({
+    required String clinicId,
+    required String title,
+    required String specialty,
+    required String tone,
+    required List<String> keyPoints,
+    required String ctaPreference,
+    String? disclaimerPreference,
+  }) async {
+    return CaptionDraft(
+      caption: 'API caption',
+      shortCta: ctaPreference,
+      disclaimerNeeded: true,
+    );
+  }
+
+  @override
+  Future<ReelScriptDraft> generateReelScript({
+    required String clinicId,
+    required String title,
+    required String specialty,
+    required String tone,
+    required List<String> keyPoints,
+    required String ctaPreference,
+  }) async {
+    return ReelScriptDraft(
+      reelHook: 'API hook',
+      reelScript: 'API reel',
+      shortCta: ctaPreference,
+    );
+  }
+
+  @override
+  Future<String> rewriteTone({
+    required String clinicId,
+    required String content,
+    required String tone,
+  }) async {
+    return 'API rewrite';
+  }
+
+  @override
+  Future<ComplianceReviewDraft> reviewCompliance({
+    required String clinicId,
+    required String content,
+    required String contentVersionHash,
+  }) async {
+    return ComplianceReviewDraft(
+      status: 'flagged',
+      issueCodes: const ['guarantee_claim'],
+      notes: const ['Review claim language.'],
+      reviewedContentVersionHash: contentVersionHash,
+    );
+  }
+
+  @override
+  Future<GeneratedVisualAsset> generateVisualAsset({
+    required PraxisState state,
+    required ContentItem item,
+  }) async {
+    visualAssetCalls += 1;
+    return const GeneratedVisualAsset(
+      assetId: 'asset-1',
+      storagePath: 'clinic-1/assets/item-1-thumbnail.png',
+      mimeType: 'image/png',
+      width: 1024,
+      height: 1024,
+      signedUrl: 'https://storage.example.test/signed/asset.png',
+      expiresInSeconds: 300,
+    );
+  }
+}
+
+class RecordingPraxisRepository implements PraxisRepository {
+  RecordingPraxisRepository({required this.initialState});
+
+  final PraxisState initialState;
+
+  @override
+  Future<PraxisState> load() async => initialState;
+
+  @override
+  Future<PraxisState> saveOnboarding({
+    required PraxisState currentState,
+    required String doctorName,
+    required String qualifications,
+    required String specialty,
+    required String clinicName,
+    required String locality,
+    required String city,
+    required List<String> services,
+    required String phone,
+  }) async {
+    return currentState;
+  }
+
+  @override
+  Future<PraxisState> saveBrandKit({
+    required PraxisState currentState,
+    required BrandKit brandKit,
+  }) async {
+    return currentState.copyWith(brandKit: brandKit);
+  }
+
+  @override
+  Future<PraxisState> saveBrandLogo({
+    required PraxisState currentState,
+    required Uint8List bytes,
+    required String fileExtension,
+    required String contentType,
+  }) async {
+    return currentState;
+  }
+
+  @override
+  Future<PraxisState> saveCampaignPackage({
+    required PraxisState currentState,
+    required ContentCampaign campaign,
+    required List<ContentItem> items,
+  }) async {
+    return currentState.copyWith(campaign: campaign, items: items);
+  }
+
+  @override
+  Future<PraxisState> updateContentItem({
+    required PraxisState currentState,
+    required String id,
+    required String caption,
+  }) async {
+    return currentState;
+  }
+}
+
+PraxisState _contentDetailState() {
+  return PraxisState.initial().copyWith(
+    isAuthenticated: true,
+    clinic: const ClinicProfile(
+      id: 'clinic-1',
+      name: 'Praxis ENT Clinic',
+      locality: 'Aundh',
+      city: 'Pune',
+      services: ['Sinus consultation'],
+      phone: '+91 98765 43210',
+    ),
+    doctor: const DoctorProfile(
+      id: 'doctor-1',
+      name: 'Dr Asha Mehta',
+      qualifications: 'MBBS, MS',
+      specialty: 'ENT',
+    ),
+    campaign: ContentCampaign(
+      id: 'campaign-1',
+      title: '30-day ENT Growth Campaign',
+      goal: 'increase appointment enquiries',
+      durationDays: 30,
+      startDate: DateTime(2026, 6, 24),
+    ),
+    items: const [
+      ContentItem(
+        id: 'item-1',
+        campaignId: 'campaign-1',
+        dayOffset: 0,
+        title: 'Sinus care basics',
+        category: 'awareness',
+        status: 'drafted',
+        caption: 'General education caption.',
+        shortCta: 'Book an ENT consultation',
+        reelScript: 'Explain one safe care tip.',
+      ),
+    ],
+  );
 }

@@ -1,8 +1,21 @@
 import { z } from 'zod';
 
 const generationProviderSchema = z.enum(['fake', 'openai_compatible']);
+const imageProviderSchema = z.enum(['fake', 'openai_compatible']);
 const optionalEnvString = z.preprocess((value) => (value === '' ? undefined : value), z.string().min(1).optional());
 const optionalEnvUrl = z.preprocess((value) => (value === '' ? undefined : value), z.string().url().optional());
+const optionalEnvBoolean = z.preprocess((value) => {
+  if (value === '' || value === undefined) {
+    return undefined;
+  }
+  if (value === true || value === 'true') {
+    return true;
+  }
+  if (value === false || value === 'false') {
+    return false;
+  }
+  return value;
+}, z.boolean().optional());
 
 export const configSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -21,8 +34,17 @@ export const configSchema = z.object({
   OPENAI_COMPATIBLE_API_KEY: optionalEnvString,
   OPENAI_COMPATIBLE_CAMPAIGN_MODEL: optionalEnvString,
   OPENAI_COMPATIBLE_COPY_MODEL: optionalEnvString,
+  OPENAI_COMPATIBLE_THINKING: z.enum(['disabled', 'enabled']).optional(),
+  OPENAI_COMPATIBLE_REASONING_EFFORT: z.enum(['high', 'max']).optional(),
   GENERATION_TIMEOUT_MS: z.coerce.number().int().positive().default(5000),
-  GENERATION_DAILY_LIMIT: z.coerce.number().int().positive().default(50)
+  GENERATION_DAILY_LIMIT: z.coerce.number().int().positive().default(50),
+  IMAGE_GENERATION_ENABLED: optionalEnvBoolean.default(false),
+  IMAGE_PROVIDER: imageProviderSchema.default('fake'),
+  IMAGE_COMPATIBLE_BASE_URL: optionalEnvUrl,
+  IMAGE_COMPATIBLE_API_KEY: optionalEnvString,
+  IMAGE_COMPATIBLE_MODEL: optionalEnvString,
+  IMAGE_COMPATIBLE_GENERATIONS_PATH: z.string().min(1).default('/images/generations'),
+  IMAGE_GENERATION_DAILY_LIMIT: z.coerce.number().int().positive().default(5)
 }).superRefine((config, context) => {
   const campaignProvider = config.CAMPAIGN_PLAN_PROVIDER ?? config.AI_PROVIDER;
   const captionProvider = config.CAPTION_PROVIDER ?? config.AI_PROVIDER;
@@ -71,10 +93,39 @@ export const configSchema = z.object({
       message: 'OPENAI_COMPATIBLE_COPY_MODEL is required when copy generation uses openai_compatible'
     });
   }
+
+  if (!config.IMAGE_GENERATION_ENABLED || config.IMAGE_PROVIDER !== 'openai_compatible') {
+    return;
+  }
+
+  if (!config.IMAGE_COMPATIBLE_BASE_URL) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['IMAGE_COMPATIBLE_BASE_URL'],
+      message: 'IMAGE_COMPATIBLE_BASE_URL is required when image generation uses openai_compatible'
+    });
+  }
+
+  if (!config.IMAGE_COMPATIBLE_API_KEY) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['IMAGE_COMPATIBLE_API_KEY'],
+      message: 'IMAGE_COMPATIBLE_API_KEY is required when image generation uses openai_compatible'
+    });
+  }
+
+  if (!config.IMAGE_COMPATIBLE_MODEL) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['IMAGE_COMPATIBLE_MODEL'],
+      message: 'IMAGE_COMPATIBLE_MODEL is required when image generation uses openai_compatible'
+    });
+  }
 });
 
 export type ApiConfig = z.infer<typeof configSchema>;
 export type GenerationProviderName = z.infer<typeof generationProviderSchema>;
+export type ImageProviderName = z.infer<typeof imageProviderSchema>;
 
 export function loadConfig(env: NodeJS.ProcessEnv | Record<string, string | undefined>): ApiConfig {
   return configSchema.parse(env);

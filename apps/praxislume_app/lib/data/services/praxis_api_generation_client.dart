@@ -149,6 +149,42 @@ class PraxisApiGenerationClient implements PraxisGenerationClient {
     );
   }
 
+  @override
+  Future<GeneratedVisualAsset> generateVisualAsset({
+    required PraxisState state,
+    required ContentItem item,
+  }) async {
+    final clinic = state.clinic;
+    final doctor = state.doctor;
+    if (clinic == null || doctor == null || clinic.id.isEmpty) {
+      throw const PraxisApiException(
+        'Clinic onboarding is required before image generation.',
+      );
+    }
+    final data = await _postJson('/v1/generations/visual-asset', {
+      'clinicId': clinic.id,
+      'contentItemId': item.id,
+      'title': item.title,
+      'specialty': doctor.specialty,
+      'category': item.category,
+      'tone': state.brandKit.tone,
+      'brandColors': {
+        'primary': state.brandKit.primaryColor,
+        'accent': state.brandKit.accentColor,
+      },
+      'visualStyle': 'clean_medical_abstract',
+    });
+    return GeneratedVisualAsset(
+      assetId: readText(data, 'assetId'),
+      storagePath: readText(data, 'storagePath'),
+      mimeType: readText(data, 'mimeType'),
+      width: readInt(data, 'width'),
+      height: readInt(data, 'height'),
+      signedUrl: readText(data, 'signedUrl'),
+      expiresInSeconds: readInt(data, 'expiresInSeconds'),
+    );
+  }
+
   Future<Map<String, dynamic>> _postJson(
     String path,
     Map<String, dynamic> body,
