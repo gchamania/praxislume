@@ -212,11 +212,12 @@ Still enforced:
 - Added Supabase migration `202606240002_v0_3_carousel_slides.sql` for bounded `content_items.carousel_slides` JSON persistence under existing content-item RLS.
 - Added Flutter `CarouselSlide` domain model, API client method, repository persistence, controller generation/save methods, `/carousels` workspace route, sidebar navigation, and content-detail Carousel Studio v0.3 panel.
 - Added deterministic branded carousel previews, editable slide headline/body/visual-cue fields, save, regenerate, and manual copy/export package actions.
+- Ran live DeepSeek text smoke with a server-only key: caption generation, 30-day campaign planning, carousel slide generation, and the full local Supabase/API smoke passed through backend-gated routes with `ai_generation_logs` token/latency metadata.
+- Hardened live structured JSON prompts for campaign plans and carousel slides, including lean campaign output and carousel layout-role normalization before final Zod validation.
 
 ## In Progress
 
 - Visual browser route comparison remains manual because the in-app browser automation tab crashed while loading the Flutter web build in this pass; the built app itself served successfully over HTTP.
-- Optional live DeepSeek text smoke remains pending until a server-only DeepSeek key is supplied outside Git.
 - v0.3 production PNG/PDF export is not active yet; this pass validates structured carousel generation, deterministic preview, editable slide copy, persistence, and manual package copy/export.
 
 ## Blocked
@@ -230,8 +231,8 @@ Still enforced:
 1. v0.3 QA/browser smoke agent
    - Run the v0.3 carousel flow in browser: generate campaign, open content detail, generate carousel, edit slide copy, save, copy package, reload, and verify persisted slides.
 
-2. Live DeepSeek text smoke agent
-   - With a server-only DeepSeek key, run live text smoke for campaign plan, caption, reel script, tone rewrite, and carousel slides using the documented models.
+2. Staging AI runtime agent
+   - Convert the synchronous campaign generation path into an async job/queue or staging timeout policy before using heavier campaign-planning models for real pilot traffic.
 
 3. Deployment setup agent
    - Prepare staging environment variables and deployment notes for Flutter web, Fastify API, Supabase, and optional OpenAI-compatible routing without committing service-role or provider secrets.
@@ -263,7 +264,12 @@ Current v0.3 carousel generator verification on `codex/pl-v0-3-carousel-ai`:
 - Flutter secret scan for provider/service-role key patterns returned no matches; `rg` exited 1 because nothing was found.
 - `flutter build web --dart-define=SUPABASE_URL=<local> --dart-define=SUPABASE_ANON_KEY=<local anon> --dart-define=API_BASE_URL=http://127.0.0.1:8787` exited 0 and built `build\web`.
 - Static server for `build\web` responded 200 at `http://127.0.0.1:8088/` with page title `PraxisLume`.
-- Optional live DeepSeek smoke was not run because no real server-only DeepSeek key was supplied in this repository.
+- Initial live DeepSeek smoke found that synchronous 30-day campaign planning with `deepseek-v4-pro` exceeded the local 30s timeout.
+- Local live routing was adjusted outside Git to use `deepseek-v4-flash` for campaign planning with a 60s server timeout, while keeping carousel generation on `deepseek-v4-pro`.
+- `POST /v1/generations/content-item-caption` live smoke exited 0 with `provider=openai_compatible`, `model=deepseek-v4-flash`, `status=succeeded`, prompt/completion token metadata, and `ai_generation_logs` persistence.
+- `POST /v1/generations/campaign-plan` live smoke exited 0 with 30 items, day offsets `0..29`, `provider=openai_compatible`, `model=deepseek-v4-flash`, token metadata, and `ai_generation_logs` persistence.
+- `POST /v1/generations/carousel-slides` live smoke exited 0 with 5 slides, first role `cover`, final role `disclaimer`, `provider=openai_compatible`, `model=deepseek-v4-pro`, token metadata, and `ai_generation_logs` persistence.
+- `flutter test test/supabase_repository_smoke_test.dart --dart-define=SUPABASE_URL=<local> --dart-define=SUPABASE_ANON_KEY=<local anon> --dart-define=API_BASE_URL=http://127.0.0.1:8787` exited 0 with the full live DeepSeek local Supabase/API smoke passing after prompt hardening.
 
 Source-of-truth reconciliation: v0.3 remains aligned with `docs/SOURCE_OF_TRUTH.md`. PraxisLume still uses Flutter, Supabase, Fastify, shared contracts, and backend-gated AI. Carousel generation is structured JSON plus deterministic branded templates, not a Canva clone or freeform design canvas. Provider keys stay server-only, patient-identifiable input is rejected before provider calls, and no avatar/video/social publishing/CRM/diagnosis workflow was added.
 

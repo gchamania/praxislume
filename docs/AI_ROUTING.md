@@ -63,6 +63,12 @@ OPENAI_COMPATIBLE_THINKING=disabled
 OPENAI_COMPATIBLE_REASONING_EFFORT=high
 ```
 
+For synchronous local smoke testing, `deepseek-v4-flash` is acceptable for
+`OPENAI_COMPATIBLE_CAMPAIGN_MODEL` because a full 30-day structured JSON plan
+can exceed short HTTP timeouts on `deepseek-v4-pro`. Use `deepseek-v4-pro` for
+campaign planning after adding an async job/queue path or longer staging
+timeouts.
+
 Keep `OPENAI_COMPATIBLE_THINKING=disabled` for structured JSON reliability
 unless a live smoke proves the provider can return strict schema-conformant JSON
 with thinking enabled.
@@ -124,6 +130,10 @@ local-development dependencies.
   CTA, disclaimer, and safe campaign goals.
 - Provider output must be strict JSON and pass shared Zod contracts.
 - Invalid JSON or schema failures get one repair attempt, then fail closed.
+- The carousel route may normalize provider-specific layout role labels such as
+  `symptom` or `procedure` into supported deterministic template roles before
+  final Zod validation. This does not rewrite medical copy or bypass
+  patient-data checks.
 - Every generation attempt logs provider, model, generation type, prompt
   version/hash, latency, status, error category, and token counts when returned.
 - Logs must not include provider keys, service-role keys, raw auth tokens, or

@@ -591,12 +591,14 @@ describe('PraxisLume API', () => {
 
   it('routes v0.3 carousel generation through the OpenAI-compatible AI API', async () => {
     const generationStore = new RecordingGenerationStore();
+    const providerCarousel = carouselResponseFixture();
+    providerCarousel.slides[2].role = 'symptom';
     const fetchMock = vi.fn().mockResolvedValue(
       jsonResponse({
         choices: [
           {
             message: {
-              content: JSON.stringify(carouselResponseFixture())
+              content: JSON.stringify(providerCarousel)
             }
           }
         ],
@@ -626,6 +628,7 @@ describe('PraxisLume API', () => {
     });
 
     expect(response.statusCode).toBe(200);
+    expect(response.json().data.slides[2].role).toBe('education');
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, request] = fetchMock.mock.calls[0];
     expect(url).toBe('https://api.deepseek.com/chat/completions');
