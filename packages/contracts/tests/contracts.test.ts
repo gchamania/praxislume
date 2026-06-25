@@ -8,7 +8,12 @@ import {
   contentCategorySchema,
   contentStatusSchema,
   generationToneSchema,
-  patientDataGuard
+  patientDataGuard,
+  safeVisualStyleSchema,
+  visualAssetGenerationRequestSchema,
+  visualAssetGenerationResponseSchema,
+  visualBriefRequestSchema,
+  visualBriefResponseSchema
 } from '../src/index.js';
 
 describe('shared contracts', () => {
@@ -92,5 +97,59 @@ describe('shared contracts', () => {
     });
 
     expect(parsed.contentVersionHash).toBe('sha256-safe');
+  });
+
+  it('validates safe visual briefs and generated asset responses', () => {
+    const brief = visualBriefRequestSchema.parse({
+      clinicId: '8a66fd06-dadc-4bdb-966a-2c701f74a287',
+      contentItemId: '3a5cc1c8-9f1b-4eb6-93f3-8f092f316542',
+      title: 'Sinus care basics',
+      specialty: 'ENT',
+      category: 'awareness',
+      tone: 'simple',
+      brandColors: {
+        primary: '#0D4D57',
+        accent: '#F2C15E'
+      },
+      visualStyle: 'clean_medical_abstract'
+    });
+    expect(safeVisualStyleSchema.parse(brief.visualStyle)).toBe('clean_medical_abstract');
+
+    const briefResponse = visualBriefResponseSchema.parse({
+      prompt:
+        'Clean abstract ENT clinic education background with teal and gold shapes, no text, no people, no patient imagery.',
+      negativePrompt:
+        'No readable text, no logo, no faces, no patients, no before and after, no anatomical findings.',
+      overlayGuidance: 'Leave calm negative space for clinic text overlays.'
+    });
+    expect(briefResponse.prompt).toContain('no text');
+
+    const assetRequest = visualAssetGenerationRequestSchema.parse({
+      clinicId: brief.clinicId,
+      contentItemId: brief.contentItemId,
+      title: brief.title,
+      specialty: brief.specialty,
+      category: brief.category,
+      tone: brief.tone,
+      clinicName: 'Praxis ENT Clinic',
+      doctorName: 'Dr Asha Mehta',
+      shortCta: 'Book an ENT consultation',
+      disclaimer: 'For general education only.',
+      brandColors: brief.brandColors,
+      visualStyle: brief.visualStyle,
+      logoPath: '8a66fd06-dadc-4bdb-966a-2c701f74a287/logo.png'
+    });
+    expect(assetRequest.logoPath).toContain(assetRequest.clinicId);
+
+    const assetResponse = visualAssetGenerationResponseSchema.parse({
+      assetId: '6ef35f0c-cdb2-439d-9684-7172d5ddca77',
+      storagePath: '8a66fd06-dadc-4bdb-966a-2c701f74a287/assets/asset.svg',
+      mimeType: 'image/svg+xml',
+      width: 1080,
+      height: 1080,
+      signedUrl: 'https://storage.example.test/signed/asset.svg',
+      expiresInSeconds: 300
+    });
+    expect(assetResponse.mimeType).toBe('image/svg+xml');
   });
 });

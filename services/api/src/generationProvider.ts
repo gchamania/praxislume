@@ -192,7 +192,10 @@ class OpenAICompatibleProvider {
             `Tone: ${request.tone}`,
             `CTA to use: ${request.ctaPreference}`,
             `Disclaimer preference: ${request.disclaimerPreference}`,
-            'Return {"items":[...]} only. Use valid categories, safe patient-education language, short CTAs, and no patient-specific examples.'
+            'Return exactly this JSON shape and key names:',
+            '{"items":[{"dayOffset":0,"title":"short topic title","category":"awareness","objective":"patient education objective","keyPoints":["point 1","point 2"],"caption":"patient-friendly caption","shortCta":"short CTA","hashtags":["#ENTCare"],"reelHook":"optional short hook","reelScript":"optional short script","disclaimerNeeded":true}]}',
+            'Allowed category values only: awareness, myth_buster, symptoms, procedure_explainer, seasonal_health_tip, clinic_service, faq.',
+            `Generate exactly ${request.durationDays} items. dayOffset must start at 0 and end at ${request.durationDays - 1}. Do not use keys named day, content, cta, or disclaimer. Use safe patient-education language and no patient-specific examples.`
           ].join('\n')
         }
       ]
@@ -355,21 +358,33 @@ class OpenAICompatibleProvider {
   private async chatCompletion(model: string, messages: ChatMessage[]): Promise<ProviderChatResult> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.config.GENERATION_TIMEOUT_MS);
+    const requestBody: Record<string, unknown> = {
+      model,
+      messages,
+      response_format: { type: 'json_object' },
+      temperature: 0.3,
+      stream: false
+    };
+
+    if (this.config.OPENAI_COMPATIBLE_THINKING) {
+      requestBody.thinking = { type: this.config.OPENAI_COMPATIBLE_THINKING };
+    }
+
+    if (
+      this.config.OPENAI_COMPATIBLE_REASONING_EFFORT &&
+      this.config.OPENAI_COMPATIBLE_THINKING !== 'disabled'
+    ) {
+      requestBody.reasoning_effort = this.config.OPENAI_COMPATIBLE_REASONING_EFFORT;
+    }
 
     try {
-      const response = await fetch(`${this.baseUrl}/chat/completions`, {
+      const response = await globalThis.fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           authorization: `Bearer ${this.apiKey}`,
           'content-type': 'application/json'
         },
-        body: JSON.stringify({
-          model,
-          messages,
-          response_format: { type: 'json_object' },
-          temperature: 0.3,
-          stream: false
-        }),
+        body: JSON.stringify(requestBody),
         signal: controller.signal
       });
 
@@ -377,16 +392,16 @@ class OpenAICompatibleProvider {
         throw new ProviderGenerationError('provider_error');
       }
 
-      const body = (await response.json()) as OpenAICompatibleChatResponse;
-      const content = body.choices?.[0]?.message?.content;
+      const responseBody = (await response.json()) as OpenAICompatibleChatResponse;
+      const content = responseBody.choices?.[0]?.message?.content;
       if (!content) {
         throw new ProviderGenerationError('provider_error');
       }
 
       return {
         content,
-        promptTokens: numberOrUndefined(body.usage?.prompt_tokens),
-        completionTokens: numberOrUndefined(body.usage?.completion_tokens)
+        promptTokens: numberOrUndefined(responseBody.usage?.prompt_tokens),
+        completionTokens: numberOrUndefined(responseBody.usage?.completion_tokens)
       };
     } catch (error) {
       if (error instanceof ProviderGenerationError) {
@@ -397,7 +412,10 @@ class OpenAICompatibleProvider {
         throw new ProviderGenerationError('provider_timeout', 'Generation provider timed out');
       }
 
-      throw new ProviderGenerationError('provider_error');
+      throw new ProviderGenerationError(
+        'provider_error',
+        error instanceof Error ? error.message : 'Generation provider failed'
+      );
     } finally {
       clearTimeout(timeout);
     }

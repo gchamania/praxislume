@@ -107,6 +107,59 @@ OPENAI_COMPATIBLE_COPY_MODEL=<copy-model>
 `OPENAI_COMPATIBLE_BASE_URL` can point at a direct provider API, LiteLLM Proxy,
 or Vercel AI Gateway. See `docs/AI_ROUTING.md`.
 
+For DeepSeek V4 local smoke:
+
+```env
+OPENAI_COMPATIBLE_BASE_URL=https://api.deepseek.com
+OPENAI_COMPATIBLE_CAMPAIGN_MODEL=deepseek-v4-pro
+OPENAI_COMPATIBLE_COPY_MODEL=deepseek-v4-flash
+OPENAI_COMPATIBLE_THINKING=disabled
+OPENAI_COMPATIBLE_REASONING_EFFORT=high
+```
+
+Keep the DeepSeek key only in `OPENAI_COMPATIBLE_API_KEY` inside
+`services/api/.env` or deployment secrets.
+
+## Optional Visual Asset Pilot
+
+Visual asset generation is disabled by default. For local staging fake-image
+smoke, set these in `services/api/.env`:
+
+```env
+IMAGE_GENERATION_ENABLED=true
+IMAGE_PROVIDER=fake
+IMAGE_GENERATION_DAILY_LIMIT=1
+```
+
+For fal.ai staging smoke, keep the key server-only in `services/api/.env`:
+
+```env
+IMAGE_GENERATION_ENABLED=true
+IMAGE_PROVIDER=fal_ai
+FAL_KEY=<server-only-fal-key>
+FAL_IMAGE_MODEL=fal-ai/flux/schnell
+FAL_RUN_BASE_URL=https://fal.run
+IMAGE_GENERATION_DAILY_LIMIT=1
+```
+
+For a single OpenAI image smoke test, keep the key server-only in
+`services/api/.env`:
+
+```env
+IMAGE_GENERATION_ENABLED=true
+IMAGE_PROVIDER=openai_image
+OPENAI_IMAGE_API_KEY=<server-only-openai-key>
+OPENAI_IMAGE_MODEL=gpt-image-1-mini
+OPENAI_IMAGE_BASE_URL=https://api.openai.com/v1
+IMAGE_GENERATION_DAILY_LIMIT=1
+```
+
+Do not put `FAL_KEY`, `OPENAI_IMAGE_API_KEY`, provider keys, or the Supabase service-role key
+in Flutter dart defines, `.env.example`, or any committed file with real values.
+The Flutter app calls the Fastify API with the user's Supabase JWT; the backend
+downloads or decodes provider image outputs and stores the deterministic
+branded SVG in the private `generated-assets` bucket.
+
 ## Verification
 
 Run:

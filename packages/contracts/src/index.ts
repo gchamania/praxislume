@@ -35,6 +35,7 @@ export const apiErrorCodeSchema = z.enum([
   'provider_error',
   'provider_timeout',
   'quota_exceeded',
+  'feature_disabled',
   'internal_error'
 ]);
 
@@ -153,6 +154,64 @@ export const complianceReviewResponseSchema = z.object({
   reviewedContentVersionHash: z.string().min(1)
 });
 
+const hexColorSchema = z.string().regex(/^#[0-9A-Fa-f]{6}$/);
+
+export const safeVisualStyleSchema = z.enum([
+  'clean_medical_abstract',
+  'soft_clinic_gradient',
+  'friendly_health_illustration'
+]);
+
+export const brandColorsSchema = z.object({
+  primary: hexColorSchema,
+  accent: hexColorSchema
+});
+
+export const visualBriefRequestSchema = z.object({
+  clinicId: uuidSchema,
+  contentItemId: uuidSchema.optional(),
+  title: z.string().trim().min(2).max(140),
+  specialty: z.string().trim().min(2).max(120),
+  category: contentCategorySchema,
+  tone: generationToneSchema,
+  brandColors: brandColorsSchema,
+  visualStyle: safeVisualStyleSchema
+});
+
+export const visualBriefResponseSchema = z.object({
+  prompt: z.string().trim().min(20).max(1200),
+  negativePrompt: z.string().trim().min(20).max(1200),
+  overlayGuidance: z.string().trim().min(10).max(400)
+});
+
+export const visualAssetGenerationRequestSchema = visualBriefRequestSchema
+  .extend({
+    clinicName: z.string().trim().min(2).max(140),
+    doctorName: z.string().trim().min(2).max(140),
+    shortCta: z.string().trim().min(2).max(180),
+    disclaimer: z.string().trim().min(2).max(260),
+    logoPath: z.string().trim().min(3).max(260).optional()
+  })
+  .superRefine((request, context) => {
+    if (request.logoPath && !request.logoPath.startsWith(`${request.clinicId}/`)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['logoPath'],
+        message: 'logoPath must stay under the clinic storage folder'
+      });
+    }
+  });
+
+export const visualAssetGenerationResponseSchema = z.object({
+  assetId: uuidSchema,
+  storagePath: z.string().trim().min(3).max(320),
+  mimeType: z.literal('image/svg+xml'),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  signedUrl: z.string().url(),
+  expiresInSeconds: z.number().int().positive()
+});
+
 const patientDataPatterns: Array<{ code: string; pattern: RegExp }> = [
   { code: 'phone_number', pattern: /(?:\+?\d[\s-]?){10,}/i },
   { code: 'medical_record_number', pattern: /\b(?:mrn|medical record|patient id|uhid)\b/i },
@@ -206,3 +265,8 @@ export type ReelScriptRequest = z.infer<typeof reelScriptRequestSchema>;
 export type ToneRewriteRequest = z.infer<typeof toneRewriteRequestSchema>;
 export type ComplianceReviewRequest = z.infer<typeof complianceReviewRequestSchema>;
 export type ComplianceReviewResponse = z.infer<typeof complianceReviewResponseSchema>;
+export type SafeVisualStyle = z.infer<typeof safeVisualStyleSchema>;
+export type VisualBriefRequest = z.infer<typeof visualBriefRequestSchema>;
+export type VisualBriefResponse = z.infer<typeof visualBriefResponseSchema>;
+export type VisualAssetGenerationRequest = z.infer<typeof visualAssetGenerationRequestSchema>;
+export type VisualAssetGenerationResponse = z.infer<typeof visualAssetGenerationResponseSchema>;

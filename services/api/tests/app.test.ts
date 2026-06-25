@@ -379,7 +379,9 @@ describe('PraxisLume API', () => {
         CAMPAIGN_PLAN_PROVIDER: 'openai_compatible',
         OPENAI_COMPATIBLE_BASE_URL: 'https://gateway.example.test/v1',
         OPENAI_COMPATIBLE_API_KEY: 'server-only-test-key',
-        OPENAI_COMPATIBLE_CAMPAIGN_MODEL: 'clinic-campaign-model'
+        OPENAI_COMPATIBLE_CAMPAIGN_MODEL: 'clinic-campaign-model',
+        OPENAI_COMPATIBLE_THINKING: 'disabled',
+        OPENAI_COMPATIBLE_REASONING_EFFORT: 'high'
       },
       allowTestTokens: true,
       generationStore
@@ -412,8 +414,10 @@ describe('PraxisLume API', () => {
     const body = JSON.parse(request.body);
     expect(body).toMatchObject({
       model: 'clinic-campaign-model',
+      thinking: { type: 'disabled' },
       response_format: { type: 'json_object' }
     });
+    expect(body.reasoning_effort).toBeUndefined();
     expect(generationStore.entries[0]).toEqual(
       expect.objectContaining({
         generationType: 'campaign_plan',
@@ -842,6 +846,374 @@ describe('PraxisLume API', () => {
     expect(response.statusCode).toBe(400);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it('rejects visual asset generation without authorization', async () => {
+    const app = buildApp({ env });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      payload: visualAssetPayload()
+    });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: { code: 'unauthorized' }
+    });
+  });
+
+  it('returns a safe disabled response when visual asset generation is not enabled', async () => {
+    const generationStore = new RecordingGenerationStore();
+    const app = buildApp({ env, allowTestTokens: true, generationStore });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: visualAssetPayload()
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: {
+        code: 'feature_disabled',
+        message: 'Visual asset generation is disabled'
+      }
+    });
+    expect(generationStore.reserveCalls).toBe(0);
+    expect(generationStore.entries).toEqual([
+      expect.objectContaining({
+        generationType: 'visual_asset',
+        status: 'blocked',
+        errorCategory: 'feature_disabled'
+      })
+    ]);
+  });
+
+  it('generates a fake visual asset, stores it, and logs the output reference id', async () => {
+    const generationStore = new RecordingGenerationStore();
+    const visualAssetStore = new RecordingVisualAssetStore();
+    const app = buildApp({
+      env: { ...env, IMAGE_GENERATION_ENABLED: 'true', IMAGE_PROVIDER: 'fake' },
+      allowTestTokens: true,
+      generationStore,
+      visualAssetStore
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: visualAssetPayload()
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toMatchObject({
+      assetId: '77777777-7777-4777-8777-777777777777',
+      storagePath: '8a66fd06-dadc-4bdb-966a-2c701f74a287/assets/final.svg',
+      mimeType: 'image/svg+xml',
+      signedUrl: 'https://storage.example.test/signed/final.svg'
+    });
+    expect(visualAssetStore.assets[0]).toEqual(
+      expect.objectContaining({
+        clinicId: '8a66fd06-dadc-4bdb-966a-2c701f74a287',
+        contentItemId: '3a5cc1c8-9f1b-4eb6-93f3-8f092f316542',
+        assetType: 'branded_post_asset',
+        mimeType: 'image/svg+xml'
+      })
+    );
+    expect(generationStore.entries[0]).toEqual(
+      expect.objectContaining({
+        generationType: 'visual_asset',
+        provider: 'fake',
+        model: 'fake-image-v1',
+        status: 'succeeded',
+        outputReferenceId: '77777777-7777-4777-8777-777777777777'
+      })
+    );
+  });
+
+  it('returns the latest generated visual asset for a content item without generating again', async () => {
+    const generationStore = new RecordingGenerationStore();
+    const visualAssetStore = new RecordingVisualAssetStore();
+    const app = buildApp({
+      env: { ...env, IMAGE_GENERATION_ENABLED: 'true', IMAGE_PROVIDER: 'fake' },
+      allowTestTokens: true,
+      generationStore,
+      visualAssetStore
+    });
+
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: visualAssetPayload()
+    });
+    expect(createResponse.statusCode).toBe(200);
+
+    const latestResponse = await app.inject({
+      method: 'GET',
+      url:
+        '/v1/generations/visual-asset/latest?clinicId=8a66fd06-dadc-4bdb-966a-2c701f74a287&contentItemId=3a5cc1c8-9f1b-4eb6-93f3-8f092f316542',
+      headers: { authorization: 'Bearer test-user-1' }
+    });
+
+    expect(latestResponse.statusCode).toBe(200);
+    expect(latestResponse.json().data).toMatchObject({
+      assetId: '77777777-7777-4777-8777-777777777777',
+      storagePath: '8a66fd06-dadc-4bdb-966a-2c701f74a287/assets/final.svg',
+      mimeType: 'image/svg+xml',
+      width: 1080,
+      height: 1080,
+      signedUrl: 'https://storage.example.test/signed/final.svg',
+      expiresInSeconds: 300
+    });
+    expect(generationStore.reserveCalls).toBe(1);
+  });
+
+  it('returns null when no generated visual asset exists for the content item', async () => {
+    const app = buildApp({
+      env: { ...env, IMAGE_GENERATION_ENABLED: 'true', IMAGE_PROVIDER: 'fake' },
+      allowTestTokens: true,
+      visualAssetStore: new RecordingVisualAssetStore()
+    });
+
+    const response = await app.inject({
+      method: 'GET',
+      url:
+        '/v1/generations/visual-asset/latest?clinicId=8a66fd06-dadc-4bdb-966a-2c701f74a287&contentItemId=3a5cc1c8-9f1b-4eb6-93f3-8f092f316542',
+      headers: { authorization: 'Bearer test-user-1' }
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toBeNull();
+  });
+
+  it('rejects patient-identifiable visual asset input before provider calls', async () => {
+    const generationStore = new RecordingGenerationStore();
+    const visualAssetStore = new RecordingVisualAssetStore();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const app = buildApp({
+      env: {
+        ...env,
+        IMAGE_GENERATION_ENABLED: 'true',
+        IMAGE_PROVIDER: 'fal_ai',
+        FAL_KEY: 'server-only-fal-key'
+      },
+      allowTestTokens: true,
+      generationStore,
+      visualAssetStore
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: {
+        ...visualAssetPayload(),
+        title: 'Patient phone 9876543210 case'
+      }
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: { code: 'patient_data_rejected' }
+    });
+    expect(generationStore.reserveCalls).toBe(0);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('calls fal.ai with server-only key, safe background prompt, and no baked overlay text', async () => {
+    const generationStore = new RecordingGenerationStore();
+    const visualAssetStore = new RecordingVisualAssetStore();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          images: [
+            {
+              url: 'https://fal.example.test/generated.png',
+              width: 1024,
+              height: 1024,
+              content_type: 'image/png'
+            }
+          ],
+          has_nsfw_concepts: [false],
+          prompt: 'safe prompt',
+          seed: 123
+        })
+      )
+      .mockResolvedValueOnce(binaryResponse('fake-png-bytes', 'image/png'));
+    vi.stubGlobal('fetch', fetchMock);
+    const app = buildApp({
+      env: {
+        ...env,
+        IMAGE_GENERATION_ENABLED: 'true',
+        IMAGE_PROVIDER: 'fal_ai',
+        FAL_KEY: 'server-only-fal-key',
+        FAL_IMAGE_MODEL: 'fal-ai/flux/schnell'
+      },
+      allowTestTokens: true,
+      generationStore,
+      visualAssetStore
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: visualAssetPayload()
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const [url, request] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://fal.run/fal-ai/flux/schnell');
+    expect(request.headers.authorization).toBe('Key server-only-fal-key');
+    expect(request.headers['content-type']).toBe('application/json');
+    const body = JSON.parse(request.body);
+    expect(body).toMatchObject({
+      image_size: 'square_hd',
+      num_images: 1,
+      enable_safety_checker: true,
+      output_format: 'png'
+    });
+    expect(body.prompt).toMatch(/no readable text/i);
+    expect(body.prompt).toMatch(/no logo/i);
+    expect(body.prompt).toMatch(/no faces/i);
+    expect(body.prompt).not.toContain('Praxis ENT Clinic');
+    expect(body.prompt).not.toContain('Dr Asha Mehta');
+    expect(body.prompt).not.toContain('Book an ENT consultation');
+    expect(generationStore.entries[0]).toEqual(
+      expect.objectContaining({
+        generationType: 'visual_asset',
+        provider: 'fal_ai',
+        model: 'fal-ai/flux/schnell',
+        status: 'succeeded'
+      })
+    );
+  });
+
+  it('requires a server-only OpenAI image key when OpenAI image provider is enabled', async () => {
+    expect(() =>
+      buildApp({
+        env: {
+          ...env,
+          IMAGE_GENERATION_ENABLED: 'true',
+          IMAGE_PROVIDER: 'openai_image'
+        }
+      })
+    ).toThrow(/OPENAI_IMAGE_API_KEY/);
+  });
+
+  it('calls OpenAI Images once for a single safe infographic-style background', async () => {
+    const generationStore = new RecordingGenerationStore();
+    const visualAssetStore = new RecordingVisualAssetStore();
+    const openAIImageBytes = 'fake-openai-png-bytes';
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        data: [{ b64_json: Buffer.from(openAIImageBytes).toString('base64') }]
+      })
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const app = buildApp({
+      env: {
+        ...env,
+        IMAGE_GENERATION_ENABLED: 'true',
+        IMAGE_PROVIDER: 'openai_image',
+        OPENAI_IMAGE_API_KEY: 'server-only-openai-image-key',
+        OPENAI_IMAGE_MODEL: 'gpt-image-1-mini'
+      },
+      allowTestTokens: true,
+      generationStore,
+      visualAssetStore
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: visualAssetPayload()
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, request] = fetchMock.mock.calls[0];
+    expect(url).toBe('https://api.openai.com/v1/images/generations');
+    expect(request.headers.authorization).toBe('Bearer server-only-openai-image-key');
+    expect(request.headers['content-type']).toBe('application/json');
+    const body = JSON.parse(request.body);
+    expect(body).toMatchObject({
+      model: 'gpt-image-1-mini',
+      n: 1,
+      size: '1024x1024',
+      output_format: 'png'
+    });
+    expect(body.prompt).toMatch(/infographic-style/i);
+    expect(body.prompt).toMatch(/no readable text/i);
+    expect(body.prompt).toMatch(/no logo/i);
+    expect(body.prompt).toMatch(/no faces/i);
+    expect(body.prompt).not.toContain('Praxis ENT Clinic');
+    expect(body.prompt).not.toContain('Dr Asha Mehta');
+    expect(body.prompt).not.toContain('Book an ENT consultation');
+    const savedSvg = new TextDecoder().decode(visualAssetStore.assets[0].bytes as Uint8Array);
+    expect(savedSvg).toContain(Buffer.from(openAIImageBytes).toString('base64'));
+    expect(generationStore.entries[0]).toEqual(
+      expect.objectContaining({
+        generationType: 'visual_asset',
+        provider: 'openai_image',
+        model: 'gpt-image-1-mini',
+        status: 'succeeded',
+        outputReferenceId: '77777777-7777-4777-8777-777777777777'
+      })
+    );
+  });
+
+  it('blocks OpenAI visual asset generation when the one-image quota is exhausted before provider calls', async () => {
+    const generationStore = new RecordingGenerationStore({ quotaAllowed: false });
+    const visualAssetStore = new RecordingVisualAssetStore();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    const app = buildApp({
+      env: {
+        ...env,
+        IMAGE_GENERATION_ENABLED: 'true',
+        IMAGE_PROVIDER: 'openai_image',
+        OPENAI_IMAGE_API_KEY: 'server-only-openai-image-key',
+        IMAGE_GENERATION_DAILY_LIMIT: '1'
+      },
+      allowTestTokens: true,
+      generationStore,
+      visualAssetStore
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: visualAssetPayload()
+    });
+
+    expect(response.statusCode).toBe(429);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: { code: 'quota_exceeded' }
+    });
+    expect(generationStore.reserveCalls).toBe(1);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(generationStore.entries[0]).toEqual(
+      expect.objectContaining({
+        generationType: 'visual_asset',
+        provider: 'openai_image',
+        status: 'blocked',
+        errorCategory: 'quota_exceeded'
+      })
+    );
+  });
 });
 
 const validContentCategories = [
@@ -866,6 +1238,27 @@ function liveCampaignPayload() {
     tone: 'simple',
     ctaPreference: 'Book an ENT consultation',
     disclaimerPreference: 'For general education only.'
+  };
+}
+
+function visualAssetPayload() {
+  return {
+    clinicId: '8a66fd06-dadc-4bdb-966a-2c701f74a287',
+    contentItemId: '3a5cc1c8-9f1b-4eb6-93f3-8f092f316542',
+    title: 'Sinus care basics',
+    specialty: 'ENT',
+    category: 'awareness',
+    tone: 'simple',
+    clinicName: 'Praxis ENT Clinic',
+    doctorName: 'Dr Asha Mehta',
+    shortCta: 'Book an ENT consultation',
+    disclaimer: 'For general education only.',
+    brandColors: {
+      primary: '#0D4D57',
+      accent: '#F2C15E'
+    },
+    visualStyle: 'clean_medical_abstract',
+    logoPath: '8a66fd06-dadc-4bdb-966a-2c701f74a287/logo.png'
   };
 }
 
@@ -905,6 +1298,18 @@ function jsonResponse(payload: unknown, status = 200) {
   };
 }
 
+function binaryResponse(payload: string, contentType: string, status = 200) {
+  const bytes = new TextEncoder().encode(payload);
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    headers: {
+      get: (name: string) => (name.toLowerCase() === 'content-type' ? contentType : null)
+    },
+    arrayBuffer: async () => bytes.buffer
+  };
+}
+
 class RecordingGenerationStore {
   readonly entries: Array<Record<string, unknown>> = [];
   reserveCalls = 0;
@@ -930,5 +1335,42 @@ class RecordingComplianceReviewStore {
 
   async recordReview(entry: Record<string, unknown>) {
     this.entries.push(entry);
+  }
+}
+
+class RecordingVisualAssetStore {
+  readonly assets: Array<Record<string, unknown>> = [];
+  readonly savedAssets: Array<Record<string, unknown>> = [];
+
+  async downloadLogo() {
+    return {
+      bytes: new TextEncoder().encode('<svg></svg>'),
+      mimeType: 'image/svg+xml'
+    };
+  }
+
+  async saveAsset(input: Record<string, unknown>) {
+    this.assets.push(input);
+    const saved = {
+      assetId: '77777777-7777-4777-8777-777777777777',
+      storagePath: '8a66fd06-dadc-4bdb-966a-2c701f74a287/assets/final.svg',
+      signedUrl: 'https://storage.example.test/signed/final.svg',
+      expiresInSeconds: 300,
+      mimeType: 'image/svg+xml',
+      width: 1080,
+      height: 1080,
+      clinicId: input.clinicId,
+      contentItemId: input.contentItemId
+    };
+    this.savedAssets.unshift(saved);
+    return saved;
+  }
+
+  async latestBrandedAsset(input: Record<string, unknown>) {
+    return (
+      this.savedAssets.find(
+        (asset) => asset.clinicId === input.clinicId && asset.contentItemId === input.contentItemId
+      ) ?? undefined
+    );
   }
 }

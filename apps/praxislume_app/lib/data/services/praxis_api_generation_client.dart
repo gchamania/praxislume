@@ -149,6 +149,70 @@ class PraxisApiGenerationClient implements PraxisGenerationClient {
     );
   }
 
+  @override
+  Future<GeneratedVisualAsset> generateVisualAsset({
+    required PraxisState state,
+    required ContentItem item,
+  }) async {
+    final clinic = state.clinic;
+    final doctor = state.doctor;
+    if (clinic == null || doctor == null || clinic.id.isEmpty) {
+      throw const PraxisApiException(
+        'Clinic onboarding is required before visual generation.',
+      );
+    }
+
+    final data = await _postJson('/v1/generations/visual-asset', {
+      'clinicId': clinic.id,
+      'contentItemId': item.id,
+      'title': item.title,
+      'specialty': doctor.specialty,
+      'category': item.category,
+      'tone': state.brandKit.tone,
+      'clinicName': clinic.name,
+      'doctorName': doctor.name,
+      'shortCta': item.shortCta.isEmpty
+          ? state.brandKit.defaultCta
+          : item.shortCta,
+      'disclaimer': state.brandKit.disclaimer,
+      'brandColors': {
+        'primary': state.brandKit.primaryColor,
+        'accent': state.brandKit.accentColor,
+      },
+      'visualStyle': 'clean_medical_abstract',
+      if (state.brandKit.logoPath != null) 'logoPath': state.brandKit.logoPath,
+    });
+
+    return _readGeneratedVisualAsset(data);
+  }
+
+  @override
+  Future<GeneratedVisualAsset?> fetchLatestVisualAsset({
+    required String clinicId,
+    required String contentItemId,
+  }) async {
+    final query = Uri(
+      queryParameters: {'clinicId': clinicId, 'contentItemId': contentItemId},
+    ).query;
+    final data = await _getJson('/v1/generations/visual-asset/latest?$query');
+    if (data == null) {
+      return null;
+    }
+    return _readGeneratedVisualAsset(data);
+  }
+
+  GeneratedVisualAsset _readGeneratedVisualAsset(Map<String, dynamic> data) {
+    return GeneratedVisualAsset(
+      assetId: readText(data, 'assetId'),
+      storagePath: readText(data, 'storagePath'),
+      mimeType: readText(data, 'mimeType'),
+      width: readInt(data, 'width'),
+      height: readInt(data, 'height'),
+      signedUrl: readText(data, 'signedUrl'),
+      expiresInSeconds: readInt(data, 'expiresInSeconds'),
+    );
+  }
+
   Future<Map<String, dynamic>> _postJson(
     String path,
     Map<String, dynamic> body,
@@ -180,6 +244,39 @@ class PraxisApiGenerationClient implements PraxisGenerationClient {
       throw PraxisApiException(message);
     }
     final data = parsed['data'];
+    if (data is! Map) {
+      throw const PraxisApiException('API response data was invalid.');
+    }
+    return Map<String, dynamic>.from(data);
+  }
+
+  Future<Map<String, dynamic>?> _getJson(String path) async {
+    final token = _supabase.auth.currentSession?.accessToken;
+    if (token == null || token.isEmpty) {
+      throw const PraxisApiException('A Supabase session is required.');
+    }
+    final response = await _httpClient.get(
+      Uri.parse('$_baseUrl$path'),
+      headers: {'authorization': 'Bearer $token'},
+    );
+    final envelope = jsonDecode(response.body);
+    if (envelope is! Map) {
+      throw const PraxisApiException('API response was invalid.');
+    }
+    final parsed = Map<String, dynamic>.from(envelope);
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300 ||
+        parsed['ok'] != true) {
+      final error = parsed['error'];
+      final message = error is Map
+          ? readText(Map<String, dynamic>.from(error), 'message')
+          : 'Generation request failed.';
+      throw PraxisApiException(message);
+    }
+    final data = parsed['data'];
+    if (data == null) {
+      return null;
+    }
     if (data is! Map) {
       throw const PraxisApiException('API response data was invalid.');
     }

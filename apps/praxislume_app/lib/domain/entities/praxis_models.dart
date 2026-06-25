@@ -191,6 +191,26 @@ class ComplianceReviewDraft {
   final String? saferRewrite;
 }
 
+class GeneratedVisualAsset {
+  const GeneratedVisualAsset({
+    required this.assetId,
+    required this.storagePath,
+    required this.mimeType,
+    required this.width,
+    required this.height,
+    required this.signedUrl,
+    required this.expiresInSeconds,
+  });
+
+  final String assetId;
+  final String storagePath;
+  final String mimeType;
+  final int width;
+  final int height;
+  final String signedUrl;
+  final int expiresInSeconds;
+}
+
 class PraxisState {
   const PraxisState({
     required this.isAuthenticated,

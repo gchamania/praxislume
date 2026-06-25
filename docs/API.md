@@ -42,6 +42,7 @@ Error:
 - `POST /v1/generations/content-item-caption`: drafts or regenerates a caption.
 - `POST /v1/generations/reel-script`: drafts a hook and short reel script.
 - `POST /v1/generations/tone-rewrite`: rewrites content in a selected clinic tone.
+- `POST /v1/generations/visual-asset`: pilot route for a safe generated background plus deterministic PraxisLume SVG brand overlay.
 - `POST /v1/compliance/review`: runs rules-first compliance review.
 
 Generation endpoints reserve usage before provider execution and record every
@@ -74,6 +75,17 @@ and provider error responses are returned as generic error envelopes.
 See `docs/AI_ROUTING.md` for direct provider, LiteLLM Proxy, and Vercel AI
 Gateway routing notes.
 
+Visual asset generation is disabled by default and is not subscription-core
+MVP scope. When enabled, the backend may call `fake`, `fal_ai`, or
+`openai_image` as the image provider. Flutter never receives image provider keys.
+The image provider is
+asked only for a safe background with no readable text, logo, people, patient
+imagery, before/after imagery, anatomical findings, or procedure outcome
+claims. PraxisLume then renders clinic logo, clinic name, doctor name, title,
+CTA, colors, and disclaimer into a deterministic SVG asset and stores it in the
+private `generated-assets` bucket. The OpenAI image provider is intended for a
+one-image local smoke using `gpt-image-1-mini` by default.
+
 Compliance review records metadata to `content_compliance_reviews`, including
 status, issue codes, and risk notes. The raw reviewed content is not persisted
 by the API review store.
@@ -105,4 +117,5 @@ only public Supabase configuration and user JWTs.
 - `provider_error`
 - `provider_timeout`
 - `quota_exceeded`
+- `feature_disabled`
 - `internal_error`

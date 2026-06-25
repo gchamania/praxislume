@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:praxislume_app/main.dart';
+import 'package:praxislume_app/presentation/router/praxis_router.dart';
 
 void main() {
   testWidgets('routes anonymous users to sign in', (tester) async {
@@ -112,7 +114,90 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
 
     expect(find.text('Post package copied'), findsOneWidget);
+    expect(
+      find.text('Image generation pilot is unavailable in this build.'),
+      findsOneWidget,
+    );
+    final visualButton = tester.widget<OutlinedButton>(
+      find.byKey(const Key('generateVisualAssetButton')),
+    );
+    expect(visualButton.onPressed, isNull);
   });
+
+  testWidgets(
+    'generates and previews a branded visual asset when API client exists',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1200, 1200));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final generationClient = RecordingVisualGenerationClient();
+      final item = const ContentItem(
+        id: 'content-1',
+        campaignId: 'campaign-1',
+        dayOffset: 0,
+        title: 'Sinus care basics',
+        category: 'awareness',
+        status: 'drafted',
+        caption: 'General education caption.',
+        shortCta: 'Book an ENT consultation',
+        reelScript: 'Explain safe sinus care basics.',
+      );
+      final initialState = PraxisState.initial().copyWith(
+        isAuthenticated: true,
+        clinic: const ClinicProfile(
+          id: 'clinic-1',
+          name: 'Praxis ENT Clinic',
+          locality: 'Aundh',
+          city: 'Pune',
+          services: ['Sinus consultation'],
+          phone: '+91 98765 43210',
+        ),
+        doctor: const DoctorProfile(
+          id: 'doctor-1',
+          name: 'Dr Asha Mehta',
+          qualifications: 'MBBS, MS ENT',
+          specialty: 'ENT',
+        ),
+        campaign: ContentCampaign(
+          id: 'campaign-1',
+          title: '30-day ENT Growth Campaign',
+          goal: 'appointments',
+          durationDays: 30,
+          startDate: DateTime(2026, 6, 24),
+        ),
+        items: [item],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            praxisRepositoryProvider.overrideWithValue(
+              InMemoryPraxisRepository(initialState: initialState),
+            ),
+            praxisGenerationClientProvider.overrideWithValue(generationClient),
+          ],
+          child: const PraxisRouterApp(),
+        ),
+      );
+
+      await tester.tap(find.text('Use demo account'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Content Library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Sinus care basics').first);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(
+        find.byKey(const Key('generateVisualAssetButton')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('generateVisualAssetButton')));
+      await tester.pumpAndSettle();
+
+      expect(generationClient.visualAssetCalls, 1);
+      expect(find.text('Generated branded asset ready'), findsOneWidget);
+      expect(find.text('Branded asset generated'), findsOneWidget);
+    },
+  );
 
   testWidgets('saves brand kit and shows deterministic preview', (
     tester,
@@ -245,4 +330,84 @@ Future<void> _openMobileDrawer(WidgetTester tester) async {
   final scaffold = tester.state<ScaffoldState>(find.byType(Scaffold).last);
   scaffold.openDrawer();
   await tester.pumpAndSettle();
+}
+
+class RecordingVisualGenerationClient implements PraxisGenerationClient {
+  int visualAssetCalls = 0;
+
+  @override
+  Future<GeneratedVisualAsset> generateVisualAsset({
+    required PraxisState state,
+    required ContentItem item,
+  }) async {
+    visualAssetCalls += 1;
+    return const GeneratedVisualAsset(
+      assetId: 'asset-1',
+      storagePath: 'clinic-1/assets/final.svg',
+      mimeType: 'image/svg+xml',
+      width: 1080,
+      height: 1080,
+      signedUrl: 'https://storage.example.test/signed/final.svg',
+      expiresInSeconds: 300,
+    );
+  }
+
+  @override
+  Future<GeneratedVisualAsset?> fetchLatestVisualAsset({
+    required String clinicId,
+    required String contentItemId,
+  }) async {
+    return null;
+  }
+
+  @override
+  Future<List<GeneratedCampaignPlanItem>> generateCampaignPlan({
+    required PraxisState state,
+    required int durationDays,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<CaptionDraft> generateCaption({
+    required String clinicId,
+    required String title,
+    required String specialty,
+    required String tone,
+    required List<String> keyPoints,
+    required String ctaPreference,
+    String? disclaimerPreference,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<ReelScriptDraft> generateReelScript({
+    required String clinicId,
+    required String title,
+    required String specialty,
+    required String tone,
+    required List<String> keyPoints,
+    required String ctaPreference,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<String> rewriteTone({
+    required String clinicId,
+    required String content,
+    required String tone,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<ComplianceReviewDraft> reviewCompliance({
+    required String clinicId,
+    required String content,
+    required String contentVersionHash,
+  }) {
+    throw UnimplementedError();
+  }
 }

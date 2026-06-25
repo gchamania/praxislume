@@ -27,6 +27,7 @@ export type UsageReservationInput = {
   clinicId: string;
   userId: string;
   generationType: string;
+  limitCount?: number;
 };
 
 export type UsageReservationResult = {
@@ -48,12 +49,13 @@ export class InMemoryGenerationStore implements GenerationStore {
 
   async reserveUsage(input: UsageReservationInput): Promise<UsageReservationResult> {
     const key = `${input.clinicId}:${input.generationType}:${new Date().toISOString().slice(0, 10)}`;
+    const limitCount = input.limitCount ?? this.dailyLimit;
     const usedCount = this.usage.get(key) ?? 0;
-    if (usedCount >= this.dailyLimit) {
-      return { allowed: false, usedCount, limitCount: this.dailyLimit };
+    if (usedCount >= limitCount) {
+      return { allowed: false, usedCount, limitCount };
     }
     this.usage.set(key, usedCount + 1);
-    return { allowed: true, usedCount: usedCount + 1, limitCount: this.dailyLimit };
+    return { allowed: true, usedCount: usedCount + 1, limitCount };
   }
 
   async recordGeneration(entry: GenerationLogEntry): Promise<void> {
@@ -95,7 +97,7 @@ export class SupabaseGenerationStore implements GenerationStore {
 
     if (existing) {
       const usedCount = Number(existing.used_count ?? 0);
-      const limitCount = Number(existing.limit_count ?? this.config.GENERATION_DAILY_LIMIT);
+      const limitCount = Number(existing.limit_count ?? input.limitCount ?? this.config.GENERATION_DAILY_LIMIT);
       if (usedCount >= limitCount) {
         return { allowed: false, usedCount, limitCount };
       }
@@ -116,12 +118,12 @@ export class SupabaseGenerationStore implements GenerationStore {
       period_start: periodStart,
       period_end: periodEnd,
       used_count: 1,
-      limit_count: this.config.GENERATION_DAILY_LIMIT
+      limit_count: input.limitCount ?? this.config.GENERATION_DAILY_LIMIT
     });
     if (insertError) {
       throw insertError;
     }
-    return { allowed: true, usedCount: 1, limitCount: this.config.GENERATION_DAILY_LIMIT };
+    return { allowed: true, usedCount: 1, limitCount: input.limitCount ?? this.config.GENERATION_DAILY_LIMIT };
   }
 
   async recordGeneration(entry: GenerationLogEntry): Promise<void> {

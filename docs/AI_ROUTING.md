@@ -30,6 +30,8 @@ OPENAI_COMPATIBLE_BASE_URL=https://api.openai.com/v1
 OPENAI_COMPATIBLE_API_KEY=server-only-key
 OPENAI_COMPATIBLE_CAMPAIGN_MODEL=campaign-planner-model
 OPENAI_COMPATIBLE_COPY_MODEL=copywriter-model
+OPENAI_COMPATIBLE_THINKING=
+OPENAI_COMPATIBLE_REASONING_EFFORT=
 ```
 
 `CAMPAIGN_PLAN_PROVIDER`, `CAPTION_PROVIDER`, `REEL_SCRIPT_PROVIDER`, and
@@ -51,6 +53,20 @@ OpenAI-compatible chat-completions API:
 LiteLLM and Vercel AI Gateway are compatible infrastructure options, not hard
 local-development dependencies.
 
+For DeepSeek V4 JSON generation, set:
+
+```env
+OPENAI_COMPATIBLE_BASE_URL=https://api.deepseek.com
+OPENAI_COMPATIBLE_CAMPAIGN_MODEL=deepseek-v4-pro
+OPENAI_COMPATIBLE_COPY_MODEL=deepseek-v4-flash
+OPENAI_COMPATIBLE_THINKING=disabled
+OPENAI_COMPATIBLE_REASONING_EFFORT=high
+```
+
+`OPENAI_COMPATIBLE_THINKING=disabled` keeps DeepSeek in non-thinking mode for
+structured JSON reliability. If `OPENAI_COMPATIBLE_THINKING=enabled`, the API
+can also send `OPENAI_COMPATIBLE_REASONING_EFFORT=high|max`.
+
 ## Safety And Audit Rules
 
 - Patient-identifiable input is rejected before provider calls.
@@ -63,8 +79,70 @@ local-development dependencies.
 - Logs must not include provider keys, service-role keys, raw auth tokens, or
   patient-identifiable prompt text.
 
+## Visual Asset Pilot
+
+Visual asset generation is a local staging pilot, not MVP subscription core. It
+is disabled by default:
+
+```env
+IMAGE_GENERATION_ENABLED=false
+IMAGE_PROVIDER=fake
+FAL_KEY=
+FAL_IMAGE_MODEL=fal-ai/flux/schnell
+FAL_RUN_BASE_URL=https://fal.run
+OPENAI_IMAGE_API_KEY=
+OPENAI_IMAGE_MODEL=gpt-image-1-mini
+OPENAI_IMAGE_BASE_URL=https://api.openai.com/v1
+IMAGE_GENERATION_DAILY_LIMIT=1
+```
+
+To test the local fake path, set:
+
+```env
+IMAGE_GENERATION_ENABLED=true
+IMAGE_PROVIDER=fake
+```
+
+To test fal.ai, keep the key only in `services/api/.env` or deployment
+secrets:
+
+```env
+IMAGE_GENERATION_ENABLED=true
+IMAGE_PROVIDER=fal_ai
+FAL_KEY=<server-only-fal-key>
+FAL_IMAGE_MODEL=fal-ai/flux/schnell
+FAL_RUN_BASE_URL=https://fal.run
+```
+
+To test a single OpenAI image background, keep the key only in
+`services/api/.env` or deployment secrets:
+
+```env
+IMAGE_GENERATION_ENABLED=true
+IMAGE_PROVIDER=openai_image
+OPENAI_IMAGE_API_KEY=<server-only-openai-key>
+OPENAI_IMAGE_MODEL=gpt-image-1-mini
+OPENAI_IMAGE_BASE_URL=https://api.openai.com/v1
+IMAGE_GENERATION_DAILY_LIMIT=1
+```
+
+The visual route uses `POST /v1/generations/visual-asset`. The provider prompt
+asks only for a safe background. It explicitly excludes readable text, clinic
+logos, people, patient imagery, before/after images, anatomical findings, and
+procedure outcome claims. PraxisLume renders the clinic logo, clinic name,
+doctor name, title, CTA, colors, and disclaimer afterward as deterministic SVG
+layers and stores the final asset in the private `generated-assets` bucket.
+The fal.ai route uses direct synchronous model inference against
+`https://fal.run/<model-id>` with `Authorization: Key $FAL_KEY`, then downloads
+the returned image URL server-side before storing the PraxisLume-rendered SVG.
+The OpenAI image route uses `POST /images/generations`, requests one
+`1024x1024` PNG from `gpt-image-1-mini` by default, reads the returned base64
+image, and stores only the deterministic PraxisLume-rendered SVG asset.
+
 ## Deferred
 
-Model-assisted compliance review, embeddings, image generation, voice, avatar,
-AI video, social publishing, CRM workflows, and Canva-style editing are outside
-Sprint 10-12 and remain post-MVP decisions.
+Model-assisted compliance review, embeddings, voice, avatar, AI video, social
+publishing, CRM workflows, and Canva-style editing remain post-MVP decisions.
+AI image generation is present only as a disabled-by-default local staging pilot
+with backend logging, quota, storage isolation, and no freeform patient prompt
+surface.

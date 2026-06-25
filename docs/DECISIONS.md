@@ -63,3 +63,11 @@ Status: accepted
 Decision: add live AI through PraxisLume's own backend provider adapter using an OpenAI-compatible `/chat/completions` interface. LiteLLM Proxy and Vercel AI Gateway remain compatible routing options, not required local infrastructure.
 
 Reason: the adapter gives route-specific model control, prompt logging, schema repair, and cost observability now, while keeping future provider routing an environment-only change.
+
+## ADR-009: AI Images Are Background-Only Pilot Assets
+
+Status: accepted
+
+Decision: AI image providers may be used only through a disabled-by-default backend pilot route that creates safe backgrounds. PraxisLume renders clinic logo, text, CTA, colors, and disclaimer deterministically after provider generation.
+
+Reason: this preserves editable branded output without becoming a Canva clone, avoids patient-image and before/after risk, keeps provider keys server-only, and leaves AI image costs outside the subscription-core MVP.

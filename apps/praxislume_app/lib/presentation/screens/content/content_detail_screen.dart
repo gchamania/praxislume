@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../domain/entities/praxis_models.dart';
 import '../../../ui/praxis_components.dart';
 import '../../state/praxis_providers.dart';
 import '../../shared/content_helpers.dart';
+import '../../shared/generated_visual_asset_preview.dart';
 
 class ContentDetailScreen extends ConsumerStatefulWidget {
   const ContentDetailScreen({required this.itemId, super.key});
@@ -18,16 +20,18 @@ class ContentDetailScreen extends ConsumerStatefulWidget {
 
 class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
   late final TextEditingController _caption;
+  String? _captionItemId;
   bool _postPackageCopied = false;
+  bool _visualAssetLoading = false;
+  bool _stateLoadRequested = false;
+  GeneratedVisualAsset? _visualAsset;
+  String? _visualAssetError;
+  String? _latestVisualAssetRequestKey;
 
   @override
   void initState() {
     super.initState();
-    final item = ref
-        .read(praxisProvider)
-        .items
-        .firstWhere((candidate) => candidate.id == widget.itemId);
-    _caption = TextEditingController(text: item.caption);
+    _caption = TextEditingController();
   }
 
   @override
@@ -38,10 +42,54 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final item = ref
-        .watch(praxisProvider)
-        .items
-        .firstWhere((candidate) => candidate.id == widget.itemId);
+    final state = ref.watch(praxisProvider);
+    final item = _findContentItem(state.items, widget.itemId);
+    if (item == null) {
+      if (!_stateLoadRequested) {
+        _stateLoadRequested = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(praxisProvider.notifier).load();
+        });
+      }
+      return const WorkspaceShell(
+        title: 'Content',
+        subtitle: 'Loading content package.',
+        currentRoute: '/library',
+        child: PraxisCard(
+          child: Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      );
+    }
+    if (_captionItemId != item.id) {
+      _captionItemId = item.id;
+      _caption.text = item.caption;
+    }
+    final generationClient = ref.watch(praxisGenerationClientProvider);
+    final clinicId = state.clinic?.id;
+    final canHydrateLatestAsset =
+        generationClient != null && clinicId != null && clinicId.isNotEmpty;
+    final hydrationClinicId = clinicId;
+    final latestAssetRequestKey = canHydrateLatestAsset
+        ? '$hydrationClinicId:${item.id}'
+        : null;
+    if (hydrationClinicId != null &&
+        latestAssetRequestKey != null &&
+        _latestVisualAssetRequestKey != latestAssetRequestKey) {
+      _latestVisualAssetRequestKey = latestAssetRequestKey;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _loadLatestVisualAsset(
+          clinicId: hydrationClinicId,
+          contentItemId: item.id,
+          requestKey: latestAssetRequestKey,
+        );
+      });
+    }
     return WorkspaceShell(
       title: item.title,
       subtitle: 'Review, edit and manually export this content package.',
@@ -135,6 +183,63 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                 Text('CTA: ${item.shortCta}'),
                 const SizedBox(height: 8),
                 Text(item.reelScript),
+                const SizedBox(height: 18),
+                const Divider(),
+                const SizedBox(height: 12),
+                Text(
+                  'Branded asset pilot',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  generationClient == null
+                      ? 'Image generation pilot is unavailable in this build.'
+                      : 'Creates a safe background and adds clinic branding through PraxisLume.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  key: const Key('generateVisualAssetButton'),
+                  onPressed: generationClient == null || _visualAssetLoading
+                      ? null
+                      : () => _generateVisualAsset(item),
+                  icon: _visualAssetLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.auto_awesome_outlined),
+                  label: Text(
+                    _visualAssetLoading
+                        ? 'Generating asset'
+                        : 'Generate branded asset',
+                  ),
+                ),
+                if (_visualAssetError != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    _visualAssetError!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ],
+                if (_visualAsset != null) ...[
+                  const SizedBox(height: 14),
+                  const PraxisChip(
+                    label: 'Generated branded asset ready',
+                    icon: Icons.check,
+                  ),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: AspectRatio(
+                      aspectRatio: 1,
+                      child: GeneratedVisualAssetPreview(asset: _visualAsset!),
+                    ),
+                  ),
+                ],
               ],
             ),
           );
@@ -155,4 +260,83 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
       ),
     );
   }
+
+  Future<void> _generateVisualAsset(ContentItem item) async {
+    final generationClient = ref.read(praxisGenerationClientProvider);
+    if (generationClient == null) {
+      return;
+    }
+
+    setState(() {
+      _visualAssetLoading = true;
+      _visualAssetError = null;
+    });
+
+    try {
+      final asset = await generationClient.generateVisualAsset(
+        state: ref.read(praxisProvider),
+        item: item,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _visualAsset = asset;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Branded asset generated')));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _visualAssetError = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _visualAssetLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _loadLatestVisualAsset({
+    required String clinicId,
+    required String contentItemId,
+    required String requestKey,
+  }) async {
+    final generationClient = ref.read(praxisGenerationClientProvider);
+    if (generationClient == null) {
+      return;
+    }
+
+    try {
+      final asset = await generationClient.fetchLatestVisualAsset(
+        clinicId: clinicId,
+        contentItemId: contentItemId,
+      );
+      if (!mounted ||
+          asset == null ||
+          _visualAsset != null ||
+          _latestVisualAssetRequestKey != requestKey) {
+        return;
+      }
+      setState(() {
+        _visualAsset = asset;
+      });
+    } catch (_) {
+      // The asset is optional; generation remains the primary action.
+    }
+  }
+}
+
+ContentItem? _findContentItem(List<ContentItem> items, String itemId) {
+  for (final item in items) {
+    if (item.id == itemId) {
+      return item;
+    }
+  }
+  return null;
 }

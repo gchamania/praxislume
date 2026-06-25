@@ -223,6 +223,30 @@ class RecordingGenerationClient implements PraxisGenerationClient {
       reviewedContentVersionHash: contentVersionHash,
     );
   }
+
+  @override
+  Future<GeneratedVisualAsset> generateVisualAsset({
+    required PraxisState state,
+    required ContentItem item,
+  }) async {
+    return const GeneratedVisualAsset(
+      assetId: 'asset-1',
+      storagePath: 'clinic-1/assets/final.svg',
+      mimeType: 'image/svg+xml',
+      width: 1080,
+      height: 1080,
+      signedUrl: 'https://storage.example.test/signed/final.svg',
+      expiresInSeconds: 300,
+    );
+  }
+
+  @override
+  Future<GeneratedVisualAsset?> fetchLatestVisualAsset({
+    required String clinicId,
+    required String contentItemId,
+  }) async {
+    return null;
+  }
 }
 
 class RecordingPraxisRepository implements PraxisRepository {

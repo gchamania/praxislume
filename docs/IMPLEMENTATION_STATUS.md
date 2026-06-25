@@ -1,19 +1,19 @@
 # PraxisLume Implementation Status
 
-Last inspected: 2026-06-23
+Last inspected: 2026-06-25
 
 ## Repository State
 
-PraxisLume is an initialized Git repository with a runnable foundation for v0.1 plus light v0.2, and the Supabase migration/RLS foundation has now been executed locally.
+PraxisLume is an initialized Git repository with a runnable foundation for v0.1 plus light v0.2, backend-gated live text generation, and a local-staging visual asset pipeline branch.
 
 - Git repository: initialized in `C:\codex_experiments\PraxisLume`.
 - Git remote: `origin` points to `https://github.com/gchamania/praxislume.git`.
-- Current implementation branch: `codex/pl-flutter-clean-architecture`.
+- Current implementation branch: `codex/pl-local-staging-fal-renderer`.
 - Docs: canonical docs are populated and duplicate `docs/PraxisLume_*.md` files have been removed.
-- Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, clean architecture folders, Day 2 mockup-inspired visual foundations, redesigned MVP workspace routes, widget tests, controller tests, and an architecture boundary test.
-- Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake and OpenAI-compatible provider routing, Supabase-backed generation/quota/compliance stores, and tests.
-- Contracts: `packages/contracts` has shared Zod schemas and tests.
-- Supabase: `supabase` has local config, initial migration, seed data, logo storage policies, and an executable RLS verification script.
+- Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, clean architecture folders, Day 2 mockup-inspired visual foundations, redesigned MVP workspace routes, a content-detail branded visual asset pilot action, widget tests, controller tests, and an architecture boundary test.
+- Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake and OpenAI-compatible provider routing, disabled-by-default fake/fal.ai visual asset routing, Supabase-backed generation/quota/compliance/asset stores, and tests.
+- Contracts: `packages/contracts` has shared Zod schemas for text generation, compliance, and visual asset generation.
+- Supabase: `supabase` has local config, migrations, seed data, logo/generated-asset storage policies, and an executable RLS verification script.
 - Supabase CLI: pinned as a root npm dev dependency; use `npx.cmd supabase ...` or the root npm scripts on Windows.
 - CI/scripts: GitHub Actions workflow and local PowerShell verification scripts exist.
 
@@ -82,12 +82,16 @@ API and contracts:
 - `services/api/src/generationProvider.ts`
 - `services/api/src/generationLog.ts`
 - `services/api/src/index.ts`
+- `services/api/src/visualAssetProvider.ts`
+- `services/api/src/visualAssetStore.ts`
+- `services/api/src/visualRenderer.ts`
 - `services/api/tests/app.test.ts`
 
 Supabase:
 
 - `supabase/config.toml`
 - `supabase/migrations/202606220001_initial_mvp_schema.sql`
+- `supabase/migrations/202606240001_visual_asset_pipeline.sql`
 - `supabase/seed.sql`
 - `supabase/tests/rls_cross_clinic.sql`
 
@@ -105,11 +109,12 @@ Known missing or deferred implementation areas:
 - Flutter still uses an in-memory repository for demo mode and tests when no Supabase session exists.
 - API Supabase persistence has adapter coverage and has passed a real local smoke test with Supabase Auth JWTs and the service-role key.
 - Real LLM provider credentials, staging secrets, and optional live smoke are not configured in the repository. The backend now supports OpenAI-compatible routing, while fake remains the default local provider.
+- Real fal.ai credentials are not configured in the repository. The backend supports a disabled-by-default `fake`/`fal_ai` visual asset route, while fake remains the default for local tests.
 - Production deployment, monitoring, and staging secrets are not configured.
 
 ## Current Version Target
 
-Implemented target: Foundation v0.0, MVP v0.1 prototype, light v0.2 brand kit foundation, Sprint 10-12 backend live-AI routing foundation, and Flutter clean-architecture refactor.
+Implemented target: Foundation v0.0, MVP v0.1 prototype, light v0.2 brand kit foundation, Sprint 10-12 backend live-AI routing foundation, Flutter clean-architecture refactor, and local-staging visual asset pipeline foundation.
 
 Still enforced:
 
@@ -119,6 +124,7 @@ Still enforced:
 - Patient-identifiable generation input is rejected by shared/API guards.
 - Visual output remains deterministic; v0.2 includes a brand preview, not a design canvas.
 - Live AI remains backend-only and route-gated; fake generation stays available for deterministic local/pilot smoke.
+- AI image generation remains disabled by default and background-only. PraxisLume renders final clinic branding as deterministic SVG layers and does not add freeform image prompts or canvas editing.
 
 ## Completed
 
@@ -181,31 +187,91 @@ Still enforced:
 - Refactored the Flutter app out of monolithic `main.dart` into `core`, `domain`, `application`, `data`, `presentation`, and `ui` layers while preserving the existing v0.1/light v0.2 routes and behavior.
 - Added `apps/praxislume_app/lib/praxis_lume.dart` as a barrel export for app modules and tests.
 - Added a Flutter architecture test that keeps `main.dart` bootstrap-only and verifies the expected app layers exist.
+- Added shared contracts for safe visual briefs, visual asset generation requests/responses, safe visual styles, and the `feature_disabled` API error category.
+- Added `POST /v1/generations/visual-asset` behind Supabase JWT auth, `IMAGE_GENERATION_ENABLED`, image-specific quota, patient-data rejection, and AI generation logging with `generation_type=visual_asset`.
+- Added a backend visual asset provider router with deterministic fake backgrounds and a fal.ai adapter that uses a server-only `FAL_KEY`, direct `https://fal.run/<model-id>` JSON inference, safe background-only prompts, temporary image URL download, and timeout/error mapping.
+- Added an optional `openai_image` visual asset provider for one-image local smoke tests using server-only `OPENAI_IMAGE_API_KEY`, `gpt-image-1-mini` by default, `POST /images/generations`, one `1024x1024` PNG, and base64 decoding into the deterministic SVG renderer path.
+- Added a deterministic server SVG renderer that layers generated background imagery with clinic logo, clinic name, doctor name, title, CTA, colors, and disclaimer.
+- Added a Supabase visual asset store that writes final SVG assets to the private `generated-assets` bucket and inserts `generated_assets` rows with clinic ownership metadata.
+- Added an additive migration for `ai_background`/`branded_post_asset` generated asset types, the `generated-assets` storage bucket, service-role grants, and owner-read storage policy.
+- Expanded RLS verification SQL to cover generated asset rows and generated asset storage objects.
+- Added a Flutter content-detail visual asset pilot panel with disabled/no-API state, backend-gated “Generate branded asset” action, and signed-URL preview.
+- Updated API, AI routing, setup, database, current release, and decision docs to document the background-only, disabled-by-default fal.ai pilot.
 
 ## In Progress
 
-- No active feature implementation after the Flutter clean-architecture pass. Next work should be integration/PR hygiene for `codex/pl-flutter-clean-architecture`, production/staging deployment setup, and optional live-provider smoke with real staging secrets.
+- No active feature implementation after the local-staging visual asset pipeline pass. Next work should be integration/PR hygiene for `codex/pl-local-staging-fal-renderer` and optional live fal.ai smoke with real server-only staging secrets.
 - Full screenshot comparison remains manual because the in-app browser screenshot API previously timed out against Flutter CanvasKit.
 
 ## Blocked
 
-- No active Supabase migration/RLS blocker after Docker Desktop and the local npm Supabase CLI are available.
-- Local Supabase still depends on Docker Desktop. The first Windows startup can take several minutes while images are pulled and may need a rerun after Docker settles.
+- No active Supabase migration/RLS blocker is known from the visual asset SQL itself, but current local RLS verification requires Docker Desktop. On the 2026-06-25 handover check, Docker Desktop's Linux engine pipe was unavailable, so `npm.cmd run supabase:test:rls` could not connect to the local Supabase DB container.
+- Live fal.ai smoke is externally blocked if the fal.ai account shows an admin lock. Keep `IMAGE_PROVIDER=fake` for reliable local demos until fal.ai support unlocks the account.
+- Local Supabase still depends on Docker Desktop. The first Windows startup or reset can take several minutes and may need a rerun after containers settle.
 
 ## Next Recommended Codex Agents
 
 1. Integration/PR agent
-   - Merge or PR `codex/pl-flutter-clean-architecture` into `surgmuster`.
+   - Merge or PR `codex/pl-local-staging-fal-renderer` into `surgmuster`.
    - Keep `surgmuster` as the target branch unless the repository strategy changes.
 
 2. Deployment setup agent
-   - Prepare staging environment variables and deployment notes for Flutter web, Fastify API, Supabase, and optional OpenAI-compatible routing without committing service-role or provider secrets.
+   - Prepare staging environment variables and deployment notes for Flutter web, Fastify API, Supabase, OpenAI-compatible text routing, optional one-image OpenAI image smoke, and optional fal.ai routing without committing service-role or provider secrets.
 
-3. Live LLM adapter agent
-   - Add a real provider behind the existing backend adapter.
-   - Keep fake provider as default and keep all provider keys server-only.
+3. Local staging smoke agent
+   - Run the fake visual asset browser smoke, then run one OpenAI image smoke only after `OPENAI_IMAGE_API_KEY` is supplied in `services/api/.env`; run fal.ai live smoke only after the fal.ai account is unlocked and `FAL_KEY` is supplied.
 
 ## Verification Results
+
+Current local-staging visual asset pipeline verification on `codex/pl-local-staging-fal-renderer`:
+
+- 2026-06-25 OpenAI one-image smoke implementation:
+  - Red check: `npm.cmd run test:api -- --run tests/app.test.ts` failed with 3 OpenAI image provider tests because `IMAGE_PROVIDER=openai_image` was not accepted by config validation.
+  - Green check: `npm.cmd run test:api -- --run tests/app.test.ts` exited 0 with 29 API tests passing after adding `openai_image` config, server-only OpenAI image envs, key validation outside the text-provider early return path, a one-image `/images/generations` provider branch, base64 image decoding, and image quota coverage.
+- 2026-06-25 implementation verification:
+  - `npm.cmd run lint` exited 0.
+  - `npm.cmd run typecheck` exited 0.
+  - `npm.cmd test` exited 0 with 7 contract tests and 29 API tests passing.
+  - `npm.cmd run build` exited 0.
+  - `npm.cmd run docs:check` exited 0.
+  - `git diff --check` exited 0.
+  - `dart format --set-exit-if-changed .` in `apps/praxislume_app` exited 0 with 0 files changed.
+  - `flutter analyze` in `apps/praxislume_app` exited 0 with no issues.
+  - `flutter test` in `apps/praxislume_app` exited 0 with 14 regular tests passing and 1 local Supabase/API smoke test skipped because dart defines were not provided.
+  - `flutter build web` in `apps/praxislume_app` exited 0 and built `build\web`.
+  - Flutter secret scan `rg -n "SUPABASE_SERVICE_ROLE_KEY|service_role|sb_secret_|sk-[A-Za-z0-9]|OPENAI_API_KEY|ANTHROPIC_API_KEY|FAL_KEY|OPENAI_IMAGE_API_KEY" apps\praxislume_app` returned no matches.
+  - `npm.cmd run supabase:test:rls` failed before SQL execution because Docker Desktop's Linux engine pipe was unavailable and the local Supabase DB container was not running.
+  - Live OpenAI image and fal.ai smoke tests were not run. The OpenAI route is optional and needs a server-only `OPENAI_IMAGE_API_KEY`; the fal.ai blocker remains an external admin account lock, not a PraxisLume code failure.
+- Red checks:
+  - `npm.cmd run test -w @praxislume/contracts -- --run tests/contracts.test.ts` initially failed because the visual asset schemas did not exist.
+  - `npm.cmd run test -w @praxislume/api -- --run tests/app.test.ts` initially failed with 404s because `/v1/generations/visual-asset` did not exist.
+  - `flutter test test/app_test.dart` initially failed because the new visual asset button was below the default widget-test viewport; the test was adjusted to use a larger viewport.
+- `npm.cmd run test -w @praxislume/contracts -- --run tests/contracts.test.ts` exited 0 with 7 tests passing.
+- `npm.cmd run test -w @praxislume/api -- --run tests/app.test.ts` exited 0 with 26 tests passing.
+- fal.ai provider swap red check: `npm.cmd run test -w @praxislume/api -- --run tests/app.test.ts` initially failed because `IMAGE_PROVIDER=fal_ai` was not yet accepted by config validation.
+- fal.ai provider swap green check: `npm.cmd run test -w @praxislume/api -- --run tests/app.test.ts` exited 0 with 26 tests passing after the backend adapter, config, env example, and docs were updated.
+- Live DeepSeek/fal.ai dry smoke:
+  - Initial DeepSeek campaign-plan route returned `provider_error` because DeepSeek V4 defaulted to thinking mode and returned schema-incompatible campaign keys.
+  - Added optional `OPENAI_COMPATIBLE_THINKING` and `OPENAI_COMPATIBLE_REASONING_EFFORT` env controls, set local DeepSeek smoke to `OPENAI_COMPATIBLE_THINKING=disabled`, and tightened the campaign-plan prompt to the exact PraxisLume JSON contract.
+  - Rerun smoke created a disposable local Supabase Auth user and clinic, called `POST /v1/generations/campaign-plan` with DeepSeek `deepseek-v4-pro`, returned 7 schema-valid items, called `POST /v1/generations/visual-asset` with fal.ai `fal-ai/flux/schnell`, stored a branded SVG in `generated-assets`, and wrote succeeded `campaign_plan` plus `visual_asset` rows to `ai_generation_logs`.
+- `npm.cmd run test -w @praxislume/api -- --run tests/app.test.ts` exited 0 with 26 tests passing after the DeepSeek thinking/prompt fix.
+- `npm.cmd run docs:check` exited 0.
+- `npm.cmd run lint` exited 0.
+- `npm.cmd run typecheck` exited 0.
+- `npm.cmd test` exited 0 with 7 contract tests and 26 API tests passing.
+- `npm.cmd run build` exited 0.
+- `dart format .` in `apps/praxislume_app` formatted the Flutter changes.
+- `dart format --output=none --set-exit-if-changed .` in `apps/praxislume_app` exited 0 with 0 files changed.
+- `flutter analyze` in `apps/praxislume_app` exited 0 with no issues.
+- `flutter test test/app_test.dart` exited 0 with 8 tests passing.
+- `flutter test` in `apps/praxislume_app` exited 0 with 14 regular tests passing and 1 local Supabase/API smoke test skipped because dart defines were not provided.
+- `flutter build web` in `apps/praxislume_app` exited 0 and built `build\web`; Flutter printed the existing non-fatal icon font warning.
+- Flutter secret scan `rg -n "SUPABASE_SERVICE_ROLE_KEY|service_role|sb_secret_|sk-[A-Za-z0-9]|AIza|OPENAI_API_KEY|ANTHROPIC_API_KEY|FAL_KEY" apps/praxislume_app` returned no matches.
+- First `npm.cmd run supabase:test:rls` failed because the already-running local DB still had an older `generated_assets_type_check` constraint from stale local migration history.
+- `npx.cmd supabase db reset` applied `202606220001_initial_mvp_schema.sql`, `202606240001_visual_asset_pipeline.sql`, and seed data from scratch; the CLI exited 1 while waiting for storage readiness, but a follow-up status check showed storage healthy and the generated asset constraint contained `ai_background` and `branded_post_asset`.
+- Rerun `npm.cmd run supabase:test:rls` exited 0 after verifying service-role writes plus cross-clinic campaign, logo, generated asset row, and generated asset storage isolation.
+
+Source-of-truth reconciliation: this sprint remains aligned with `docs/SOURCE_OF_TRUTH.md`. PraxisLume is still a Doctor Growth OS, not a Canva clone or scheduler. The work adds a disabled-by-default, backend-only, background-only visual asset pilot with deterministic SVG brand rendering, usage limits, storage ownership, and AI generation logs. It adds no social publishing, avatar/video generation, CRM workflow, diagnosis workflow, freeform patient prompt field, or provider/service-role secrets in Flutter.
 
 Current Flutter clean-architecture verification on `codex/pl-flutter-clean-architecture`:
 

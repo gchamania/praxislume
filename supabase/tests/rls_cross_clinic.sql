@@ -81,6 +81,31 @@ values (
   'rules'
 );
 
+insert into public.generated_assets (
+  id,
+  clinic_id,
+  content_item_id,
+  asset_type,
+  storage_path,
+  template_version,
+  metadata
+)
+values (
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+  null,
+  'branded_post_asset',
+  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/assets/final.svg',
+  'branded_post_asset:v1',
+  '{"rls": true}'::jsonb
+)
+on conflict (id) do nothing;
+
+insert into storage.objects (bucket_id, name, owner, metadata)
+values
+  ('generated-assets', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/assets/final.svg', '22222222-2222-2222-2222-222222222222', '{}'::jsonb)
+on conflict (bucket_id, name) do nothing;
+
 reset role;
 
 set local role authenticated;
@@ -93,6 +118,8 @@ declare
   changed_b_campaigns integer;
   visible_b_logos integer;
   changed_b_logos integer;
+  visible_b_generated_assets integer;
+  visible_b_generated_asset_objects integer;
 begin
   select count(*) into visible_clinics from public.clinics;
   if visible_clinics <> 1 then
@@ -141,6 +168,23 @@ begin
   get diagnostics changed_b_logos = row_count;
   if changed_b_logos <> 0 then
     raise exception 'Owner A can update Clinic B logo objects';
+  end if;
+
+  select count(*) into visible_b_generated_assets
+  from public.generated_assets
+  where clinic_id = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+
+  if visible_b_generated_assets <> 0 then
+    raise exception 'Owner A can see Clinic B generated asset rows';
+  end if;
+
+  select count(*) into visible_b_generated_asset_objects
+  from storage.objects
+  where bucket_id = 'generated-assets'
+    and name = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/assets/final.svg';
+
+  if visible_b_generated_asset_objects <> 0 then
+    raise exception 'Owner A can see Clinic B generated asset objects';
   end if;
 end $$;
 

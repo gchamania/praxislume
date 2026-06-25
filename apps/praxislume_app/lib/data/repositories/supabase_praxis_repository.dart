@@ -335,7 +335,7 @@ class SupabasePraxisRepository implements PraxisRepository {
   }
 
   Future<String?> _specialtyIdFor(String specialty) async {
-    final specialtyName = specialty.trim();
+    final specialtyName = _canonicalSpecialtyName(specialty);
     if (specialtyName.isEmpty) {
       return null;
     }
@@ -350,6 +350,21 @@ class SupabasePraxisRepository implements PraxisRepository {
       return null;
     }
     return nullableText(rows.first, 'id');
+  }
+}
+
+String _canonicalSpecialtyName(String specialty) {
+  final specialtyName = specialty.trim();
+  switch (specialtyName.toLowerCase()) {
+    case 'dentist':
+    case 'dentistry':
+      return 'Dental';
+    case 'gynaecology':
+    case 'gynecology':
+    case 'ivf':
+      return 'Gynecology and IVF';
+    default:
+      return specialtyName;
   }
 }
 

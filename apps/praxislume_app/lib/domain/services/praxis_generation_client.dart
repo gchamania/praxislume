@@ -36,4 +36,14 @@ abstract class PraxisGenerationClient {
     required String content,
     required String contentVersionHash,
   });
+
+  Future<GeneratedVisualAsset> generateVisualAsset({
+    required PraxisState state,
+    required ContentItem item,
+  });
+
+  Future<GeneratedVisualAsset?> fetchLatestVisualAsset({
+    required String clinicId,
+    required String contentItemId,
+  });
 }

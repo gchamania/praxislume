@@ -1,13 +1,17 @@
 import cors from '@fastify/cors';
 import Fastify from 'fastify';
 import { nanoid } from 'nanoid';
+import { z } from 'zod';
 import {
   campaignPlanRequestSchema,
   captionGenerationRequestSchema,
   complianceReviewRequestSchema,
   patientDataGuard,
   reelScriptRequestSchema,
-  toneRewriteRequestSchema
+  toneRewriteRequestSchema,
+  visualAssetGenerationRequestSchema,
+  type VisualAssetGenerationRequest,
+  type VisualAssetGenerationResponse
 } from '@praxislume/contracts';
 import { authenticateRequest, createSupabaseTokenVerifier, type AuthTokenVerifier } from './auth.js';
 import { reviewCompliance } from './compliance.js';
@@ -31,12 +35,31 @@ import {
   SupabaseGenerationStore,
   type GenerationStore
 } from './generationLog.js';
+import {
+  buildVisualBrief,
+  createVisualAssetProviderRouter,
+  VisualAssetProviderError,
+  type VisualAssetProviderMetadata,
+  type VisualAssetProviderRouter
+} from './visualAssetProvider.js';
+import {
+  InMemoryVisualAssetStore,
+  SupabaseVisualAssetStore,
+  type VisualAssetStore
+} from './visualAssetStore.js';
+import { renderBrandedPostSvg } from './visualRenderer.js';
+
+const latestVisualAssetQuerySchema = z.object({
+  clinicId: z.string().uuid(),
+  contentItemId: z.string().uuid()
+});
 
 type BuildAppOptions = {
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
   allowTestTokens?: boolean;
   generationStore?: GenerationStore;
   complianceStore?: ComplianceReviewStore;
+  visualAssetStore?: VisualAssetStore;
   tokenVerifier?: AuthTokenVerifier;
 };
 
@@ -47,6 +70,7 @@ function ensureNoPatientData(input: unknown) {
 export function buildApp(options: BuildAppOptions = {}) {
   const config = loadConfig(options.env ?? process.env);
   const provider = createGenerationProviderRouter(config);
+  const visualProvider = createVisualAssetProviderRouter(config);
   const generationStore =
     options.generationStore ??
     (config.NODE_ENV === 'test'
@@ -57,6 +81,9 @@ export function buildApp(options: BuildAppOptions = {}) {
     (config.NODE_ENV === 'test'
       ? new InMemoryComplianceReviewStore()
       : new SupabaseComplianceReviewStore(config));
+  const visualAssetStore =
+    options.visualAssetStore ??
+    (config.NODE_ENV === 'test' ? new InMemoryVisualAssetStore() : new SupabaseVisualAssetStore(config));
   const tokenVerifier =
     options.tokenVerifier ?? (config.NODE_ENV === 'test' ? undefined : createSupabaseTokenVerifier(config));
   const authPreHandler = authenticateRequest({
@@ -188,6 +215,45 @@ export function buildApp(options: BuildAppOptions = {}) {
         },
         generate: () => provider.rewriteTone(parsed.data)
       });
+    }
+  );
+
+  app.post(
+    '/v1/generations/visual-asset',
+    { preHandler: authPreHandler },
+    async (request, reply) => {
+      const parsed = visualAssetGenerationRequestSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return sendError(reply, request, 400, 'validation_error', 'Request validation failed');
+      }
+
+      return runVisualAssetGeneration({
+        request,
+        reply,
+        config,
+        generationStore,
+        visualProvider,
+        visualAssetStore,
+        input: parsed.data
+      });
+    }
+  );
+
+  app.get(
+    '/v1/generations/visual-asset/latest',
+    { preHandler: authPreHandler },
+    async (request, reply) => {
+      const parsed = latestVisualAssetQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        return sendError(reply, request, 400, 'validation_error', 'Request validation failed');
+      }
+
+      const latest = await visualAssetStore.latestBrandedAsset({
+        clinicId: parsed.data.clinicId,
+        contentItemId: parsed.data.contentItemId,
+        userId: request.auth?.userId ?? ''
+      });
+      return sendOk(reply, request, latest ?? null);
     }
   );
 
@@ -344,5 +410,201 @@ function logMetadata(metadata: GenerationProviderMetadata) {
     promptTokens: metadata.promptTokens,
     completionTokens: metadata.completionTokens,
     estimatedCost: metadata.estimatedCost
+  };
+}
+
+type RunVisualAssetOptions = {
+  request: Parameters<typeof sendOk>[1];
+  reply: Parameters<typeof sendOk>[0];
+  config: ReturnType<typeof loadConfig>;
+  generationStore: GenerationStore;
+  visualProvider: VisualAssetProviderRouter;
+  visualAssetStore: VisualAssetStore;
+  input: VisualAssetGenerationRequest;
+};
+
+async function runVisualAssetGeneration({
+  request,
+  reply,
+  config,
+  generationStore,
+  visualProvider,
+  visualAssetStore,
+  input
+}: RunVisualAssetOptions) {
+  const start = Date.now();
+  const userId = request.auth?.userId ?? 'unknown';
+  const requestId = String(request.id);
+  const providerInfo = visualProvider.providerInfo();
+  const inputSummary = visualAssetInputSummary(input);
+
+  if (!config.IMAGE_GENERATION_ENABLED) {
+    await generationStore.recordGeneration({
+      clinicId: input.clinicId,
+      userId,
+      generationType: 'visual_asset',
+      ...visualLogMetadata(providerInfo),
+      status: 'blocked',
+      errorCategory: 'feature_disabled',
+      latencyMs: Date.now() - start,
+      requestId,
+      inputSummary
+    });
+    return sendError(reply, request, 400, 'feature_disabled', 'Visual asset generation is disabled');
+  }
+
+  const guard = ensureNoPatientData(input);
+  if (!guard.ok) {
+    await generationStore.recordGeneration({
+      clinicId: input.clinicId,
+      userId,
+      generationType: 'visual_asset',
+      ...visualLogMetadata(providerInfo),
+      status: 'blocked',
+      errorCategory: 'patient_data_rejected',
+      latencyMs: Date.now() - start,
+      requestId,
+      inputSummary: {
+        ...inputSummary,
+        rejectedIssueCodes: guard.issueCodes
+      }
+    });
+    return sendError(
+      reply,
+      request,
+      400,
+      'patient_data_rejected',
+      'Patient-identifiable data is not allowed in generation requests'
+    );
+  }
+
+  const usage = await generationStore.reserveUsage({
+    clinicId: input.clinicId,
+    userId,
+    generationType: 'visual_asset',
+    limitCount: config.IMAGE_GENERATION_DAILY_LIMIT
+  });
+  if (!usage.allowed) {
+    await generationStore.recordGeneration({
+      clinicId: input.clinicId,
+      userId,
+      generationType: 'visual_asset',
+      ...visualLogMetadata(providerInfo),
+      status: 'blocked',
+      errorCategory: 'quota_exceeded',
+      latencyMs: Date.now() - start,
+      requestId,
+      inputSummary: {
+        ...inputSummary,
+        usedCount: usage.usedCount,
+        limitCount: usage.limitCount
+      }
+    });
+    return sendError(reply, request, 429, 'quota_exceeded', 'Generation quota exhausted');
+  }
+
+  try {
+    const brief = buildVisualBrief(input);
+    const background = await visualProvider.generateBackground(input, brief);
+    const logo = await visualAssetStore.downloadLogo(input.clinicId, input.logoPath);
+    const rendered = renderBrandedPostSvg({
+      request: input,
+      backgroundBytes: background.bytes,
+      backgroundMimeType: background.mimeType,
+      logo
+    });
+    const stored = await visualAssetStore.saveAsset({
+      clinicId: input.clinicId,
+      contentItemId: input.contentItemId,
+      assetType: 'branded_post_asset',
+      bytes: rendered.bytes,
+      mimeType: rendered.mimeType,
+      width: rendered.width,
+      height: rendered.height,
+      metadata: {
+        visualStyle: input.visualStyle,
+        category: input.category,
+        providerPromptHash: background.promptHash,
+        backgroundProvider: background.provider,
+        backgroundMimeType: background.mimeType,
+        promptVersion: background.promptVersion
+      }
+    });
+    const response: VisualAssetGenerationResponse = {
+      assetId: stored.assetId,
+      storagePath: stored.storagePath,
+      mimeType: rendered.mimeType,
+      width: rendered.width,
+      height: rendered.height,
+      signedUrl: stored.signedUrl,
+      expiresInSeconds: stored.expiresInSeconds
+    };
+
+    await generationStore.recordGeneration({
+      clinicId: input.clinicId,
+      userId,
+      generationType: 'visual_asset',
+      ...visualLogMetadata(background),
+      status: 'succeeded',
+      latencyMs: Date.now() - start,
+      requestId,
+      inputSummary,
+      structuredOutput: {
+        assetId: response.assetId,
+        storagePath: response.storagePath,
+        mimeType: response.mimeType,
+        width: response.width,
+        height: response.height
+      },
+      outputReferenceId: response.assetId
+    });
+    return sendOk(reply, request, response);
+  } catch (error) {
+    const errorCategory = error instanceof VisualAssetProviderError ? error.category : 'provider_error';
+    const failureMetadata =
+      error instanceof VisualAssetProviderError && error.metadata
+        ? { ...providerInfo, ...error.metadata }
+        : providerInfo;
+    await generationStore.recordGeneration({
+      clinicId: input.clinicId,
+      userId,
+      generationType: 'visual_asset',
+      ...visualLogMetadata(failureMetadata),
+      status: 'failed',
+      errorCategory,
+      latencyMs: Date.now() - start,
+      requestId,
+      inputSummary: {
+        ...inputSummary,
+        errorName: error instanceof Error ? error.name : 'UnknownError'
+      }
+    });
+    return sendError(
+      reply,
+      request,
+      errorCategory === 'provider_timeout' ? 504 : 502,
+      errorCategory,
+      errorCategory === 'provider_timeout' ? 'Visual asset provider timed out' : 'Visual asset provider failed'
+    );
+  }
+}
+
+function visualAssetInputSummary(input: VisualAssetGenerationRequest) {
+  return {
+    contentItemId: input.contentItemId,
+    specialty: input.specialty,
+    category: input.category,
+    tone: input.tone,
+    visualStyle: input.visualStyle,
+    hasLogoPath: Boolean(input.logoPath)
+  };
+}
+
+function visualLogMetadata(metadata: Partial<VisualAssetProviderMetadata>) {
+  return {
+    provider: metadata.provider ?? 'fake',
+    model: metadata.model ?? 'fake-image-v1',
+    promptVersion: metadata.promptVersion,
+    promptHash: metadata.promptHash
   };
 }
