@@ -16,6 +16,7 @@ PraxisLume is an initialized Git repository with a runnable foundation for v0.1 
 - Supabase: `supabase` has local config, migrations, seed data, logo/generated-asset storage policies, and an executable RLS verification script.
 - Supabase CLI: pinned as a root npm dev dependency; use `npx.cmd supabase ...` or the root npm scripts on Windows.
 - CI/scripts: GitHub Actions workflow and local PowerShell verification scripts exist.
+- Staging baseline: fake-provider staging env checklist and deployment runbook are present. A remote staging host is not linked in the repository.
 
 ## Existing Files
 
@@ -32,6 +33,7 @@ Canonical docs:
 - `docs/AI_ROUTING.md`
 - `docs/RELEASE_TEST_PLAN_v0_1_v0_2.md`
 - `docs/PILOT_DEMO_SCRIPT.md`
+- `docs/STAGING_DEPLOYMENT.md`
 - `docs/IMPLEMENTATION_STATUS.md`
 
 Foundation:
@@ -40,6 +42,7 @@ Foundation:
 - `AGENTS.md`
 - `.editorconfig`
 - `.env.example`
+- `.env.staging.fake.example`
 - `.gitignore`
 - `package.json`
 - `package-lock.json`
@@ -110,7 +113,7 @@ Known missing or deferred implementation areas:
 - API Supabase persistence has adapter coverage and has passed a real local smoke test with Supabase Auth JWTs and the service-role key.
 - Real LLM provider credentials, staging secrets, and optional live smoke are not configured in the repository. The backend now supports OpenAI-compatible routing, while fake remains the default local provider.
 - Real fal.ai credentials are not configured in the repository. The backend supports a disabled-by-default `fake`/`fal_ai` visual asset route, while fake remains the default for local tests.
-- Production deployment, monitoring, and staging secrets are not configured.
+- Production deployment, monitoring, and staging secrets are not configured. Fake-provider staging configuration is documented, but a remote staging host/project is not yet linked in the repository.
 
 ## Current Version Target
 
@@ -198,9 +201,11 @@ Still enforced:
 - Added a Flutter content-detail visual asset pilot panel with disabled/no-API state, backend-gated “Generate branded asset” action, and signed-URL preview.
 - Updated API, AI routing, setup, database, current release, and decision docs to document the background-only, disabled-by-default fal.ai pilot.
 
+- Added a fake-provider staging deployment runbook and environment checklist for the first visual-branch staging deploy. This keeps `IMAGE_PROVIDER=fake`, leaves OpenAI/fal.ai image keys unset, and documents health checks, rollback, and production gates.
+
 ## In Progress
 
-- No active feature implementation after the local-staging visual asset pipeline pass. Next work should be integration/PR hygiene for `codex/pl-local-staging-fal-renderer` and optional live fal.ai smoke with real server-only staging secrets.
+- Current sprint focus: fake-provider staging baseline for `codex/pl-local-staging-fal-renderer`. Remote staging deployment is pending a selected and linked hosting target.
 - Full screenshot comparison remains manual because the in-app browser screenshot API previously timed out against Flutter CanvasKit.
 
 ## Blocked
@@ -208,6 +213,7 @@ Still enforced:
 - No active Supabase migration/RLS blocker is known from the visual asset SQL itself, but current local RLS verification requires Docker Desktop. On the 2026-06-25 handover check, Docker Desktop's Linux engine pipe was unavailable, so `npm.cmd run supabase:test:rls` could not connect to the local Supabase DB container.
 - Live fal.ai smoke is externally blocked if the fal.ai account shows an admin lock. Keep `IMAGE_PROVIDER=fake` for reliable local demos until fal.ai support unlocks the account.
 - Local Supabase still depends on Docker Desktop. The first Windows startup or reset can take several minutes and may need a rerun after containers settle.
+- Remote staging deploy is blocked on choosing/linking a staging host for Flutter web and the Fastify API. The Vercel connector is available in this Codex session, but no Vercel team/project is currently linked to this repository.
 
 ## Next Recommended Codex Agents
 
@@ -216,7 +222,7 @@ Still enforced:
    - Keep `surgmuster` as the target branch unless the repository strategy changes.
 
 2. Deployment setup agent
-   - Prepare staging environment variables and deployment notes for Flutter web, Fastify API, Supabase, OpenAI-compatible text routing, optional one-image OpenAI image smoke, and optional fal.ai routing without committing service-role or provider secrets.
+   - Link the chosen staging host for Flutter web and Fastify API, then apply `.env.staging.fake.example` values through the host secret manager.
 
 3. Local staging smoke agent
    - Run the fake visual asset browser smoke, then run one OpenAI image smoke only after `OPENAI_IMAGE_API_KEY` is supplied in `services/api/.env`; run fal.ai live smoke only after the fal.ai account is unlocked and `FAL_KEY` is supplied.

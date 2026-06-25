@@ -39,6 +39,11 @@ Keep provider keys and the Supabase service-role key server-only. The root
 `.env.example` is for Flutter/public app settings; live AI configuration
 belongs only in `services/api/.env` or deployment secrets.
 
+For fake-provider staging, use `.env.staging.fake.example` as the environment
+checklist and follow `docs/STAGING_DEPLOYMENT.md`. The first staging pass keeps
+text generation deterministic and enables visual asset generation only through
+`IMAGE_PROVIDER=fake`.
+
 ## Supabase
 
 The repo pins the Supabase CLI as a root dev dependency. Prefer the local CLI:
