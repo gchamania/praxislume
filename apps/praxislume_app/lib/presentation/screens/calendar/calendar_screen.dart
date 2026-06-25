@@ -82,6 +82,37 @@ class CampaignReadyPanel extends StatelessWidget {
         const SizedBox(height: 6),
         Text('Content ideas: ${state.items.length}'),
         const SizedBox(height: 16),
+        Wrap(
+          spacing: 14,
+          runSpacing: 14,
+          children: [
+            _CampaignMetric(
+              icon: Icons.calendar_month_outlined,
+              value: '${state.campaign!.durationDays}',
+              label: 'Days',
+              tint: praxisPurple,
+            ),
+            _CampaignMetric(
+              icon: Icons.article_outlined,
+              value: '${state.items.length}',
+              label: 'Content Pieces',
+              tint: praxisTeal,
+            ),
+            const _CampaignMetric(
+              icon: Icons.movie_creation_outlined,
+              value: '12',
+              label: 'Reels',
+              tint: Color(0xFF2563EB),
+            ),
+            const _CampaignMetric(
+              icon: Icons.image_outlined,
+              value: '10',
+              label: 'Carousels',
+              tint: Color(0xFFF97316),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, constraints) {
             final wide = constraints.maxWidth > 1050;
@@ -113,19 +144,41 @@ class CampaignReadyPanel extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      for (var i = 0; i < state.items.take(14).length; i++)
-                        SizedBox(
-                          width: 150,
-                          child: CalendarDayCard(
-                            item: state.items[i],
-                            index: i,
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final columns = constraints.maxWidth >= 760 ? 7 : 2;
+                      final itemWidth =
+                          (constraints.maxWidth - ((columns - 1) * 12)) /
+                          columns;
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Week 1',
+                            style: Theme.of(context).textTheme.titleMedium,
                           ),
-                        ),
-                    ],
+                          const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: [
+                              for (
+                                var i = 0;
+                                i < state.items.take(14).length;
+                                i++
+                              )
+                                SizedBox(
+                                  width: itemWidth,
+                                  child: CalendarDayCard(
+                                    item: state.items[i],
+                                    index: i,
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
@@ -147,6 +200,64 @@ class CampaignReadyPanel extends StatelessWidget {
           },
         ),
       ],
+    );
+  }
+}
+
+class _CampaignMetric extends StatelessWidget {
+  const _CampaignMetric({
+    required this.icon,
+    required this.value,
+    required this.label,
+    required this.tint,
+  });
+
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color tint;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 210,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: praxisSurface,
+        border: Border.all(color: praxisLine),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: praxisInk.withValues(alpha: 0.035),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: tint.withValues(alpha: 0.12),
+            foregroundColor: tint,
+            child: Icon(icon),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value, style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

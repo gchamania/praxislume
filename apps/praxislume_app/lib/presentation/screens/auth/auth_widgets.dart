@@ -14,24 +14,25 @@ class AuthSplitScaffold extends StatelessWidget {
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 900;
     return Scaffold(
+      backgroundColor: const Color(0xFFF3FAFF),
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             return Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1220),
+                constraints: const BoxConstraints(maxWidth: 1280),
                 child: Container(
-                  height: max(0, constraints.maxHeight - 40),
-                  margin: const EdgeInsets.all(20),
+                  height: max(0, constraints.maxHeight - 44),
+                  margin: const EdgeInsets.all(22),
                   decoration: BoxDecoration(
                     color: praxisSurface,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: praxisLine),
+                    borderRadius: BorderRadius.circular(28),
+                    border: Border.all(color: Colors.white),
                     boxShadow: [
                       BoxShadow(
-                        color: praxisInk.withValues(alpha: 0.08),
-                        blurRadius: 30,
-                        offset: const Offset(0, 18),
+                        color: praxisInk.withValues(alpha: 0.09),
+                        blurRadius: 42,
+                        offset: const Offset(0, 24),
                       ),
                     ],
                   ),
@@ -41,7 +42,10 @@ class AuthSplitScaffold extends StatelessWidget {
                           children: [
                             Expanded(
                               child: SingleChildScrollView(
-                                padding: const EdgeInsets.all(64),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 68,
+                                  vertical: 58,
+                                ),
                                 child: child,
                               ),
                             ),
@@ -91,8 +95,16 @@ class AuthHeroPanel extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            const Text(
-              '30 days of branded medical content in 30 minutes.',
+            const Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(text: '30 days of branded medical content in '),
+                  TextSpan(
+                    text: '30 minutes.',
+                    style: TextStyle(color: praxisGold),
+                  ),
+                ],
+              ),
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 24,
@@ -249,18 +261,40 @@ class SecurityNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PraxisCard(
-      color: praxisMint,
+      color: praxisMint.withValues(alpha: 0.82),
       child: Row(
         children: [
-          const Icon(Icons.shield_outlined, color: praxisTealDark),
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: praxisTeal.withValues(alpha: 0.16),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.shield_outlined, color: praxisTealDark),
+          ),
           const SizedBox(width: 14),
           Expanded(
-            child: Text(
-              'Your data is safe with us. Never enter patient-identifiable data into generation prompts.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: praxisText,
-                fontWeight: FontWeight.w700,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Your data is safe with us',
+                  style: TextStyle(
+                    color: praxisInk,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Never enter patient-identifiable data into generation prompts.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: praxisText,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ],

@@ -17,7 +17,8 @@ class ContentLibraryScreen extends ConsumerWidget {
     final state = ref.watch(praxisProvider);
     return WorkspaceShell(
       title: 'Content Library',
-      subtitle: 'All your content in one place.',
+      subtitle:
+          'All your content in one place. Search, filter and manage your assets.',
       currentRoute: '/library',
       primaryAction: FilledButton.icon(
         onPressed: () => context.go('/generate'),
@@ -27,26 +28,103 @@ class ContentLibraryScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              const PraxisChip(
-                label: 'All Content',
-                color: Color(0xFFF3F0FF),
-                foreground: praxisPurple,
-              ),
-              PraxisChip(
-                label:
-                    'Drafts ${state.items.where((item) => item.status == 'drafted').length}',
-              ),
-              const PraxisChip(
-                label: 'Scheduled 0',
-                color: Color(0xFFFFF2E4),
-                foreground: Color(0xFFB96B00),
-              ),
-              const PraxisChip(label: 'Published 0', color: praxisMint),
-            ],
+          PraxisCard(
+            padding: EdgeInsets.zero,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compactHeader = constraints.maxWidth < 980;
+                      final tabs = Wrap(
+                        spacing: 4,
+                        runSpacing: 0,
+                        children: [
+                          _TabLabel(
+                            label: 'All Content',
+                            active: true,
+                            count: state.items.length,
+                          ),
+                          const _TabLabel(label: 'Published', count: 0),
+                          const _TabLabel(label: 'Scheduled', count: 0),
+                          _TabLabel(
+                            label: 'Drafts',
+                            count: state.items
+                                .where((item) => item.status == 'drafted')
+                                .length,
+                          ),
+                        ],
+                      );
+                      final search = Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: compactHeader ? constraints.maxWidth : 320,
+                            child: TextField(
+                              enabled: false,
+                              decoration: const InputDecoration(
+                                hintText: 'Search content, topic, type...',
+                                prefixIcon: Icon(Icons.search),
+                              ),
+                            ),
+                          ),
+                          if (!compactHeader) const SizedBox(width: 12),
+                          if (!compactHeader)
+                            OutlinedButton.icon(
+                              onPressed: () {},
+                              icon: const Icon(Icons.filter_list),
+                              label: const Text('Filters'),
+                            ),
+                        ],
+                      );
+                      if (compactHeader) {
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 8, bottom: 14),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              tabs,
+                              const SizedBox(height: 12),
+                              search,
+                              const SizedBox(height: 10),
+                              OutlinedButton.icon(
+                                onPressed: () {},
+                                icon: const Icon(Icons.filter_list),
+                                label: const Text('Filters'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      return Row(
+                        children: [
+                          Expanded(child: tabs),
+                          search,
+                        ],
+                      );
+                    },
+                  ),
+                ),
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Wrap(
+                    spacing: 14,
+                    runSpacing: 14,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: const [
+                      _FilterBox(label: 'Content Type', value: 'All'),
+                      _FilterBox(label: 'Format', value: 'All'),
+                      _FilterBox(label: 'Platform', value: 'Manual export'),
+                      _FilterBox(label: 'Topic / Condition', value: 'All'),
+                      _FilterBox(label: 'Language', value: 'English'),
+                      _FilterBox(label: 'Date', value: 'Newest First'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 18),
           if (state.items.isEmpty)
@@ -67,6 +145,29 @@ class ContentLibraryScreen extends ConsumerWidget {
                   spacing: 16,
                   runSpacing: 16,
                   children: [
+                    SizedBox(
+                      width: constraints.maxWidth,
+                      child: Row(
+                        children: [
+                          Text(
+                            '${state.items.length} Items',
+                            style: Theme.of(context).textTheme.titleMedium,
+                          ),
+                          const Spacer(),
+                          const PraxisChip(
+                            label: 'Grid',
+                            icon: Icons.grid_view,
+                            color: praxisSidebarActive,
+                            foreground: praxisPurple,
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton(
+                            onPressed: () {},
+                            child: const Text('Sort by: Newest First'),
+                          ),
+                        ],
+                      ),
+                    ),
                     for (var i = 0; i < state.items.length; i++)
                       SizedBox(
                         width: cardWidth,
@@ -79,6 +180,92 @@ class ContentLibraryScreen extends ConsumerWidget {
                 );
               },
             ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TabLabel extends StatelessWidget {
+  const _TabLabel({required this.label, this.count, this.active = false});
+
+  final String label;
+  final int? count;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(top: 18, bottom: 16, right: 28),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: active ? praxisPurple : Colors.transparent,
+            width: 2,
+          ),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: active ? praxisPurple : praxisText,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+            ),
+          ),
+          if (count != null) ...[
+            const SizedBox(width: 8),
+            PraxisChip(
+              label: '$count',
+              color: active ? praxisMint : const Color(0xFFEFF3F8),
+              foreground: active ? praxisTealDark : praxisMuted,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FilterBox extends StatelessWidget {
+  const _FilterBox({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 170,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 7),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              border: Border.all(color: praxisLine),
+              borderRadius: BorderRadius.circular(8),
+              color: praxisSurface,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ),
+                const Icon(Icons.keyboard_arrow_down, color: praxisMuted),
+              ],
+            ),
+          ),
         ],
       ),
     );

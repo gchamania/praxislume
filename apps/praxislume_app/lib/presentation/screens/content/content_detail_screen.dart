@@ -166,16 +166,35 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                MedicalThumbnail(
-                  title: item.title,
-                  category: item.category,
-                  index: item.dayOffset,
-                  aspectRatio: 1.15,
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: _visualAsset == null
+                        ? MedicalThumbnail(
+                            title: item.title,
+                            category: item.category,
+                            index: item.dayOffset,
+                            aspectRatio: 1,
+                          )
+                        : GeneratedVisualAssetPreview(asset: _visualAsset!),
+                  ),
                 ),
                 const SizedBox(height: 14),
-                PraxisChip(
-                  label: categoryLabel(item.category),
-                  color: contentCategoryTint(item.category),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    PraxisChip(
+                      label: categoryLabel(item.category),
+                      color: contentCategoryTint(item.category),
+                    ),
+                    if (_visualAsset != null)
+                      const PraxisChip(
+                        label: 'Generated asset ready',
+                        icon: Icons.check,
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Text(item.title, style: Theme.of(context).textTheme.titleLarge),
@@ -187,20 +206,25 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                 const Divider(),
                 const SizedBox(height: 12),
                 Text(
-                  'Branded asset pilot',
+                  'Branded asset',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
                 const SizedBox(height: 8),
                 Text(
                   generationClient == null
-                      ? 'Image generation pilot is unavailable in this build.'
-                      : 'Creates a safe background and adds clinic branding through PraxisLume.',
+                      ? 'Visual asset generation is unavailable in this build.'
+                      : _visualAsset == null
+                      ? 'Creates a safe background and applies clinic branding through deterministic PraxisLume layers.'
+                      : 'This branded asset is ready for manual review and export.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   key: const Key('generateVisualAssetButton'),
-                  onPressed: generationClient == null || _visualAssetLoading
+                  onPressed:
+                      generationClient == null ||
+                          _visualAssetLoading ||
+                          _visualAsset != null
                       ? null
                       : () => _generateVisualAsset(item),
                   icon: _visualAssetLoading
@@ -209,10 +233,14 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
+                      : _visualAsset != null
+                      ? const Icon(Icons.check_circle_outline)
                       : const Icon(Icons.auto_awesome_outlined),
                   label: Text(
                     _visualAssetLoading
                         ? 'Generating asset'
+                        : _visualAsset != null
+                        ? 'Asset ready'
                         : 'Generate branded asset',
                   ),
                 ),
@@ -222,21 +250,6 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                     _visualAssetError!,
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ],
-                if (_visualAsset != null) ...[
-                  const SizedBox(height: 14),
-                  const PraxisChip(
-                    label: 'Generated branded asset ready',
-                    icon: Icons.check,
-                  ),
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: AspectRatio(
-                      aspectRatio: 1,
-                      child: GeneratedVisualAssetPreview(asset: _visualAsset!),
                     ),
                   ),
                 ],

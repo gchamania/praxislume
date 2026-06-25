@@ -51,6 +51,46 @@ class GenerateContentScreen extends ConsumerWidget {
                 )
               else
                 Column(children: [input, const SizedBox(height: 18), output]),
+              const SizedBox(height: 18),
+              PraxisCard(
+                color: praxisSoftPurple,
+                child: LayoutBuilder(
+                  builder: (context, stripConstraints) {
+                    final compactStrip = stripConstraints.maxWidth < 520;
+                    final text = const Text(
+                      'Looks good? Review the content package, then keep it in manual export mode for MVP.',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    );
+                    final action = FilledButton.icon(
+                      onPressed: () => context.go('/calendar'),
+                      iconAlignment: IconAlignment.end,
+                      icon: const Icon(Icons.arrow_forward),
+                      label: const Text('Review Calendar'),
+                    );
+                    if (compactStrip) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.auto_awesome, color: praxisPurple),
+                          const SizedBox(height: 10),
+                          text,
+                          const SizedBox(height: 12),
+                          SizedBox(width: double.infinity, child: action),
+                        ],
+                      );
+                    }
+                    return Row(
+                      children: [
+                        const Icon(Icons.auto_awesome, color: praxisPurple),
+                        const SizedBox(width: 12),
+                        Expanded(child: text),
+                        const SizedBox(width: 12),
+                        action,
+                      ],
+                    );
+                  },
+                ),
+              ),
             ],
           );
         },

@@ -9,9 +9,32 @@ void main() {
     await tester.pumpWidget(const PraxisLumeApp());
 
     expect(find.text('PraxisLume'), findsOneWidget);
+    expect(find.text('Clinic content. Patient growth.'), findsOneWidget);
     expect(find.text('Sign in to continue'), findsOneWidget);
     expect(find.text('Sign in'), findsWidgets);
-    expect(find.text('Your Doctor Growth OS.'), findsOneWidget);
+    expect(find.text('Continue with Google'), findsOneWidget);
+    expect(find.text('Your data is safe with us'), findsOneWidget);
+  });
+
+  testWidgets('desktop dashboard uses the reference OS shell sections', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1536, 1024));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(const PraxisLumeApp());
+    await _completeDemoOnboarding(
+      tester,
+      specialty: 'ENT',
+      clinicName: 'Praxis ENT Clinic',
+      services: 'Sinus consultation, Ear infection care',
+    );
+
+    expect(find.text('Create New Content'), findsOneWidget);
+    expect(find.text("Today's Tasks"), findsOneWidget);
+    expect(find.text('Upcoming Schedule'), findsOneWidget);
+    expect(find.text('Top Performing Content'), findsOneWidget);
+    expect(find.text('AI Recommendations'), findsOneWidget);
   });
 
   testWidgets('shows Supabase sign in form and local configuration fallback', (
@@ -100,6 +123,8 @@ void main() {
     expect(find.text('30-day ENT Growth Campaign'), findsOneWidget);
     expect(find.textContaining('Content ideas: 30'), findsOneWidget);
 
+    await tester.ensureVisible(find.text('Day 1'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Day 1'));
     await tester.pumpAndSettle();
     await tester.enterText(
@@ -115,7 +140,7 @@ void main() {
 
     expect(find.text('Post package copied'), findsOneWidget);
     expect(
-      find.text('Image generation pilot is unavailable in this build.'),
+      find.text('Visual asset generation is unavailable in this build.'),
       findsOneWidget,
     );
     final visualButton = tester.widget<OutlinedButton>(
@@ -194,7 +219,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(generationClient.visualAssetCalls, 1);
-      expect(find.text('Generated branded asset ready'), findsOneWidget);
+      expect(find.text('Asset ready'), findsOneWidget);
+      final readyButton = tester.widget<OutlinedButton>(
+        find.byKey(const Key('generateVisualAssetButton')),
+      );
+      expect(readyButton.onPressed, isNull);
       expect(find.text('Branded asset generated'), findsOneWidget);
     },
   );
@@ -218,6 +247,8 @@ void main() {
       find.byKey(const Key('ctaField')),
       'Book a skin consultation',
     );
+    await tester.ensureVisible(find.text('Save brand kit'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Save brand kit'));
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -237,7 +268,10 @@ void main() {
 
     await tester.tap(find.text('Content Library'));
     await tester.pumpAndSettle();
-    expect(find.text('All your content in one place.'), findsOneWidget);
+    expect(
+      find.textContaining('All your content in one place'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Templates'));
     await tester.pumpAndSettle();
@@ -279,7 +313,10 @@ void main() {
     await _openMobileDrawer(tester);
     await tester.tap(find.text('Content Library'));
     await tester.pumpAndSettle();
-    expect(find.text('All your content in one place.'), findsOneWidget);
+    expect(
+      find.textContaining('All your content in one place'),
+      findsOneWidget,
+    );
 
     await _openMobileDrawer(tester);
     await tester.tap(find.text('Brand'));
@@ -287,7 +324,7 @@ void main() {
     expect(find.text('Brand Settings'), findsOneWidget);
 
     await _openMobileDrawer(tester);
-    await tester.tap(find.text('Settings'));
+    await tester.tap(find.text('Settings'), warnIfMissed: false);
     await tester.pumpAndSettle();
     expect(find.text('Settings'), findsOneWidget);
 

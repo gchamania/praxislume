@@ -36,19 +36,19 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
           const PraxisLogo(),
           const SizedBox(height: 26),
           const Text(
-            'Your Doctor Growth OS.',
+            'Clinic content. Patient growth.',
             style: TextStyle(
-              color: praxisTealDark,
+              color: praxisText,
               fontSize: 16,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
               letterSpacing: 0,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 48),
           Text('Welcome back', style: Theme.of(context).textTheme.displaySmall),
           const SizedBox(height: 8),
           const Text('Sign in to continue'),
-          const SizedBox(height: 20),
+          const SizedBox(height: 28),
           TextField(
             key: const Key('emailField'),
             controller: _email,
@@ -83,18 +83,42 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             onPressed: () => _authenticate(createAccount: false),
             child: const Text('Sign in'),
           ),
-          const SizedBox(height: 10),
-          OutlinedButton(
-            onPressed: () => context.go('/signup'),
-            child: const Text('Create account'),
-          ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           TextButton(
             onPressed: _signInDemo,
             child: const Text('Use demo account'),
           ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(child: Container(height: 1, color: praxisLine)),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text('or continue with'),
+              ),
+              Expanded(child: Container(height: 1, color: praxisLine)),
+            ],
+          ),
+          const SizedBox(height: 18),
+          const _SocialButton(icon: 'G', label: 'Continue with Google'),
+          const SizedBox(height: 10),
+          const _SocialButton(icon: 'f', label: 'Continue with Facebook'),
+          const SizedBox(height: 10),
+          const _SocialButton(icon: 'A', label: 'Continue with Apple'),
           const SizedBox(height: 16),
           const SecurityNotice(),
+          const SizedBox(height: 22),
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Text('New to PraxisLume? '),
+              TextButton(
+                onPressed: () => context.go('/signup'),
+                child: const Text('Create an account'),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -146,5 +170,50 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _SocialButton extends StatelessWidget {
+  const _SocialButton({required this.icon, required this.label});
+
+  final String icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(
+      onPressed: () {},
+      style: OutlinedButton.styleFrom(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 28,
+            child: Text(
+              icon,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+                color: praxisPurple,
+                letterSpacing: 0,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

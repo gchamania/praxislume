@@ -17,7 +17,10 @@ class SettingsScreen extends ConsumerWidget {
       subtitle: 'Manage your account, preferences and application settings.',
       currentRoute: '/settings',
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const _SettingsTabs(),
+          const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth > 900;
@@ -107,32 +110,99 @@ class SettingsScreen extends ConsumerWidget {
             },
           ),
           const SizedBox(height: 16),
-          PraxisCard(
-            child: Row(
-              children: [
-                const Icon(Icons.privacy_tip_outlined, color: praxisPurple),
-                const SizedBox(width: 14),
-                const Expanded(
-                  child: Text(
-                    'Data and privacy controls are MVP-safe: no patient-identifiable generation data is requested.',
-                  ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth > 900;
+              final privacy = PraxisCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Data & Privacy',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 16),
+                    _settingsRow(
+                      Icons.download_outlined,
+                      'Export My Data',
+                      'Manual request',
+                    ),
+                    _settingsRow(
+                      Icons.cleaning_services_outlined,
+                      'Clear Cache',
+                      'Local only',
+                    ),
+                    _settingsRow(
+                      Icons.privacy_tip_outlined,
+                      'Privacy Policy',
+                      'MVP safe',
+                    ),
+                  ],
                 ),
-                OutlinedButton(
-                  onPressed: () {
-                    ref.read(praxisProvider.notifier).signOut();
-                    context.go('/signin');
-                  },
-                  child: const Text('Sign out'),
+              );
+              final appearance = PraxisCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Appearance',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 16),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 12,
+                      children: const [
+                        PraxisChip(
+                          label: 'Light',
+                          icon: Icons.light_mode_outlined,
+                          color: praxisSidebarActive,
+                          foreground: praxisPurple,
+                        ),
+                        PraxisChip(label: 'Medium text'),
+                        PraxisChip(
+                          label: 'Indigo',
+                          color: praxisSoftPurple,
+                          foreground: praxisPurple,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Data and privacy controls are MVP-safe: no patient-identifiable generation data is requested.',
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton(
+                      onPressed: () {
+                        ref.read(praxisProvider.notifier).signOut();
+                        context.go('/signin');
+                      },
+                      child: const Text('Sign out'),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              );
+              if (!wide) {
+                return Column(
+                  children: [privacy, const SizedBox(height: 16), appearance],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: privacy),
+                  const SizedBox(width: 16),
+                  Expanded(child: appearance),
+                ],
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _settingsRow(IconData icon, String label, String value) {
+  static Widget _settingsRow(IconData icon, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Row(
@@ -141,6 +211,54 @@ class SettingsScreen extends ConsumerWidget {
           const SizedBox(width: 12),
           Expanded(child: Text(label)),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsTabs extends StatelessWidget {
+  const _SettingsTabs();
+
+  @override
+  Widget build(BuildContext context) {
+    const tabs = [
+      ('Profile', true),
+      ('Preferences', false),
+      ('Notifications', false),
+      ('Security', false),
+      ('Integrations', false),
+      ('Billing', false),
+      ('Team', false),
+    ];
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: praxisLine)),
+      ),
+      child: Wrap(
+        spacing: 26,
+        runSpacing: 8,
+        children: [
+          for (final tab in tabs)
+            Container(
+              padding: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: tab.$2 ? praxisPurple : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
+              ),
+              child: Text(
+                tab.$1,
+                style: TextStyle(
+                  color: tab.$2 ? praxisPurple : praxisText,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0,
+                ),
+              ),
+            ),
         ],
       ),
     );

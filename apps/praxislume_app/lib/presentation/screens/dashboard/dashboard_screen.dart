@@ -146,25 +146,7 @@ class _DashboardGrid extends StatelessWidget {
                   if (items.isEmpty)
                     const Text('Generate a campaign to create review tasks.')
                   else
-                    for (final item in items)
-                      ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(
-                          backgroundColor: praxisMint,
-                          child: Icon(
-                            Icons.article_outlined,
-                            color: contentStatusColor(item.status),
-                          ),
-                        ),
-                        title: Text(item.title),
-                        subtitle: Text(
-                          '${categoryLabel(item.category)} - ${item.status}',
-                        ),
-                        trailing: OutlinedButton(
-                          onPressed: () => context.go('/content/${item.id}'),
-                          child: const Text('Review'),
-                        ),
-                      ),
+                    for (final item in items) _TaskRow(item: item),
                 ],
               ),
             ),
@@ -229,6 +211,35 @@ class _DashboardGrid extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             PraxisCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        'Top Performing Content',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      TextButton(
+                        onPressed: () {},
+                        child: const Text('View All'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (state.items.isEmpty)
+                    const Text('Generate content to see top items.')
+                  else
+                    for (var i = 0; i < state.items.take(4).length; i++)
+                      _TopContentRow(item: state.items[i], index: i),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            PraxisCard(
               color: praxisPurple.withValues(alpha: 0.06),
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,6 +272,128 @@ class _DashboardGrid extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _TaskRow extends StatelessWidget {
+  const _TaskRow({required this.item});
+
+  final ContentItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 24,
+            backgroundColor: contentCategoryTint(item.category),
+            child: Icon(
+              Icons.article_outlined,
+              color: contentStatusColor(item.status),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${categoryLabel(item.category)} is ready for review',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          OutlinedButton(
+            onPressed: () => context.go('/content/${item.id}'),
+            child: const Text('Review'),
+          ),
+          IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert)),
+        ],
+      ),
+    );
+  }
+}
+
+class _TopContentRow extends StatelessWidget {
+  const _TopContentRow({required this.item, required this.index});
+
+  final ContentItem item;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final views = ['12.4K', '9.8K', '7.6K', '6.3K'][index % 4];
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 25,
+            backgroundColor: contentCategoryTint(item.category),
+            child: Icon(
+              Icons.article_outlined,
+              color: contentStatusColor(item.status),
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                Text(
+                  '${compactCategoryLabel(item.category)} - Day ${item.dayOffset + 1}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.visibility_outlined, size: 14),
+                  const SizedBox(width: 4),
+                  Text(
+                    views,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 3),
+              const Row(
+                children: [
+                  Icon(Icons.favorite_border, size: 14),
+                  SizedBox(width: 4),
+                  Text('1.2K'),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

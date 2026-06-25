@@ -48,137 +48,149 @@ class _BrandKitScreenState extends ConsumerState<BrandKitScreen> {
         icon: const Icon(Icons.save_outlined),
         label: const Text('Save Changes'),
       ),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final wide = constraints.maxWidth > 980;
-          final form = Column(
-            children: [
-              PraxisCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Clinic Identity',
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    _brandInfo(
-                      'Clinic Name',
-                      state.clinic?.name ?? 'Clinic name',
-                    ),
-                    _brandInfo(
-                      'Doctor Name',
-                      state.doctor?.name ?? 'Doctor name',
-                    ),
-                    _brandInfo(
-                      'Specialty',
-                      state.doctor?.specialty ?? 'Specialty',
-                    ),
-                    _brandInfo('Tone', state.brandKit.tone),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              PraxisCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Logo', style: Theme.of(context).textTheme.titleLarge),
-                    const SizedBox(height: 14),
-                    Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _BrandTabs(),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth > 980;
+              final form = Column(
+                children: [
+                  PraxisCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        BrandLogoMark(
-                          logoPath: state.brandKit.logoPath,
-                          size: 58,
-                          iconSize: 28,
+                        Text(
+                          'Clinic Identity',
+                          style: Theme.of(context).textTheme.titleLarge,
                         ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Text(
-                            state.brandKit.logoPath ?? 'No logo uploaded',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
+                        const SizedBox(height: 16),
+                        _brandInfo(
+                          'Clinic Name',
+                          state.clinic?.name ?? 'Clinic name',
                         ),
-                        const SizedBox(width: 12),
-                        OutlinedButton.icon(
-                          key: const Key('logoUploadButton'),
-                          onPressed: _uploadingLogo || state.clinic == null
-                              ? null
-                              : () async => _pickLogo(context),
-                          icon: _uploadingLogo
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : const Icon(Icons.upload_file_outlined),
-                          label: const Text('Upload'),
+                        _brandInfo(
+                          'Doctor Name',
+                          state.doctor?.name ?? 'Doctor name',
+                        ),
+                        _brandInfo(
+                          'Specialty',
+                          state.doctor?.specialty ?? 'Specialty',
+                        ),
+                        _brandInfo('Tone', state.brandKit.tone),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  PraxisCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Logo',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 14),
+                        Row(
+                          children: [
+                            BrandLogoMark(
+                              logoPath: state.brandKit.logoPath,
+                              size: 58,
+                              iconSize: 28,
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Text(
+                                state.brandKit.logoPath ?? 'No logo uploaded',
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            OutlinedButton.icon(
+                              key: const Key('logoUploadButton'),
+                              onPressed: _uploadingLogo || state.clinic == null
+                                  ? null
+                                  : () async => _pickLogo(context),
+                              icon: _uploadingLogo
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                  : const Icon(Icons.upload_file_outlined),
+                              label: const Text('Upload'),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              PraxisCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Content Defaults',
-                      style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  const SizedBox(height: 16),
+                  PraxisCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Content Defaults',
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            onPressed: () async => _save(context),
+                            icon: const Icon(Icons.save_outlined),
+                            label: const Text('Save brand kit'),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          key: const Key('primaryColorField'),
+                          controller: _primaryColor,
+                          decoration: const InputDecoration(
+                            labelText: 'Primary color',
+                            prefixIcon: Icon(Icons.color_lens_outlined),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        TextField(
+                          key: const Key('ctaField'),
+                          controller: _cta,
+                          decoration: const InputDecoration(
+                            labelText: 'Default CTA',
+                            prefixIcon: Icon(Icons.campaign_outlined),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        onPressed: () async => _save(context),
-                        icon: const Icon(Icons.save_outlined),
-                        label: const Text('Save brand kit'),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      key: const Key('primaryColorField'),
-                      controller: _primaryColor,
-                      decoration: const InputDecoration(
-                        labelText: 'Primary color',
-                        prefixIcon: Icon(Icons.color_lens_outlined),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    TextField(
-                      key: const Key('ctaField'),
-                      controller: _cta,
-                      decoration: const InputDecoration(
-                        labelText: 'Default CTA',
-                        prefixIcon: Icon(Icons.campaign_outlined),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          );
-          final preview = BrandPreview(state: state);
-          if (!wide) {
-            return Column(
-              children: [form, const SizedBox(height: 16), preview],
-            );
-          }
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(flex: 2, child: form),
-              const SizedBox(width: 16),
-              Expanded(child: preview),
-            ],
-          );
-        },
+                  ),
+                ],
+              );
+              final preview = BrandPreview(state: state);
+              if (!wide) {
+                return Column(
+                  children: [form, const SizedBox(height: 16), preview],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(flex: 2, child: form),
+                  const SizedBox(width: 16),
+                  Expanded(child: preview),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -256,6 +268,63 @@ class _BrandKitScreenState extends ConsumerState<BrandKitScreen> {
         setState(() => _uploadingLogo = false);
       }
     }
+  }
+}
+
+class _BrandTabs extends StatelessWidget {
+  const _BrandTabs();
+
+  @override
+  Widget build(BuildContext context) {
+    const tabs = [
+      ('Brand Identity', Icons.workspace_premium_outlined, true),
+      ('Visual Identity', Icons.palette_outlined, false),
+      ('Content Defaults', Icons.article_outlined, false),
+      ('AI Defaults', Icons.auto_awesome_outlined, false),
+      ('Multi-Clinic', Icons.local_hospital_outlined, false),
+    ];
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: praxisLine)),
+      ),
+      child: Wrap(
+        spacing: 24,
+        runSpacing: 8,
+        children: [
+          for (final tab in tabs)
+            Container(
+              padding: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: tab.$3 ? praxisPurple : Colors.transparent,
+                    width: 2,
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    tab.$2,
+                    size: 17,
+                    color: tab.$3 ? praxisPurple : praxisMuted,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    tab.$1,
+                    style: TextStyle(
+                      color: tab.$3 ? praxisPurple : praxisText,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
   }
 }
 

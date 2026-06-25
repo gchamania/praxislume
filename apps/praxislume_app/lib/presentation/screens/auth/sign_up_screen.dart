@@ -42,13 +42,23 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const PraxisLogo(),
-          const SizedBox(height: 34),
+          const SizedBox(height: 8),
+          const Text(
+            'Clinic content. Patient growth.',
+            style: TextStyle(
+              color: praxisText,
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0,
+            ),
+          ),
+          const SizedBox(height: 42),
           Text(
             'Create your account',
             style: Theme.of(context).textTheme.displaySmall,
           ),
           const SizedBox(height: 8),
-          const Text('Start with the essentials for your clinic workspace.'),
+          const Text('Join doctors growing their practice with smart content.'),
           const SizedBox(height: 24),
           _authField(_name, 'Full Name', Icons.person_outline),
           _authField(_email, 'Email Address', Icons.mail_outline),
@@ -66,15 +76,77 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             Icons.local_hospital_outlined,
           ),
           const SizedBox(height: 8),
-          const PraxisChip(
-            label: 'Doctor workspace',
-            icon: Icons.medical_services_outlined,
-            color: praxisMint,
+          Text(
+            'I am signing up as',
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 10),
+          const Row(
+            children: [
+              Expanded(
+                child: _RoleCard(
+                  selected: true,
+                  icon: Icons.medical_services_outlined,
+                  title: 'Doctor',
+                  body: 'I am the doctor or specialist',
+                ),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: _RoleCard(
+                  selected: false,
+                  icon: Icons.business_center_outlined,
+                  title: 'Clinic Manager',
+                  body: 'I manage clinic operations',
+                ),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: _RoleCard(
+                  selected: false,
+                  icon: Icons.support_agent_outlined,
+                  title: 'Receptionist',
+                  body: 'I handle front desk and content',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Checkbox(value: true, onChanged: (_) {}),
+              const Expanded(
+                child: Text(
+                  'I agree to the Terms of Service and Privacy Policy',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
           FilledButton(
             onPressed: () => _authenticate(createAccount: true),
             child: const Text('Create PraxisLume Account'),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(child: Container(height: 1, color: praxisLine)),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Text('or continue with'),
+              ),
+              Expanded(child: Container(height: 1, color: praxisLine)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Row(
+            children: [
+              Expanded(child: _SocialMiniButton(label: 'Google')),
+              SizedBox(width: 10),
+              Expanded(child: _SocialMiniButton(label: 'Facebook')),
+              SizedBox(width: 10),
+              Expanded(child: _SocialMiniButton(label: 'Apple')),
+            ],
           ),
           const SizedBox(height: 12),
           TextButton(
@@ -136,5 +208,70 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _RoleCard extends StatelessWidget {
+  const _RoleCard({
+    required this.selected,
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  final bool selected;
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 112),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: selected ? praxisMint.withValues(alpha: 0.5) : praxisSurface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: selected ? praxisTeal : praxisLine),
+      ),
+      child: Column(
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Icon(
+              selected ? Icons.radio_button_checked : Icons.radio_button_off,
+              color: selected ? praxisPurple : praxisMuted,
+              size: 18,
+            ),
+          ),
+          Icon(icon, color: praxisText),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            body,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SocialMiniButton extends StatelessWidget {
+  const _SocialMiniButton({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton(onPressed: () {}, child: Text(label));
   }
 }

@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 
 const praxisPurple = Color(0xFF5B2CFA);
-const praxisPurpleDark = Color(0xFF3B16D9);
-const praxisTeal = Color(0xFF008F86);
-const praxisTealDark = Color(0xFF005B5F);
-const praxisMint = Color(0xFFE8F7F4);
-const praxisGold = Color(0xFFF7B928);
+const praxisPurpleDark = Color(0xFF4C1DDF);
+const praxisTeal = Color(0xFF0AA98F);
+const praxisTealDark = Color(0xFF006B5D);
+const praxisMint = Color(0xFFE7F8F5);
+const praxisGold = Color(0xFFFFB020);
 const praxisInk = Color(0xFF07122F);
-const praxisText = Color(0xFF18284A);
-const praxisMuted = Color(0xFF6B7897);
-const praxisLine = Color(0xFFE4E9F2);
-const praxisCanvas = Color(0xFFF7FAFD);
+const praxisText = Color(0xFF17264A);
+const praxisMuted = Color(0xFF64748B);
+const praxisLine = Color(0xFFE2E8F0);
+const praxisCanvas = Color(0xFFF8FAFC);
 const praxisSurface = Color(0xFFFFFFFF);
+const praxisSidebarActive = Color(0xFFF3F0FF);
+const praxisSoftPurple = Color(0xFFF5F1FF);
+const praxisSoftBlue = Color(0xFFEAF4FF);
+const praxisSoftOrange = Color(0xFFFFF4E5);
 
 ThemeData buildPraxisTheme() {
   return ThemeData(
@@ -27,27 +31,27 @@ ThemeData buildPraxisTheme() {
     textTheme: const TextTheme(
       displaySmall: TextStyle(
         fontSize: 34,
-        height: 1.05,
+        height: 1.08,
         fontWeight: FontWeight.w800,
         letterSpacing: 0,
         color: praxisInk,
       ),
       headlineMedium: TextStyle(
-        fontSize: 28,
-        height: 1.15,
+        fontSize: 30,
+        height: 1.12,
         fontWeight: FontWeight.w800,
         letterSpacing: 0,
         color: praxisInk,
       ),
       headlineSmall: TextStyle(
-        fontSize: 24,
+        fontSize: 25,
         height: 1.2,
         fontWeight: FontWeight.w800,
         letterSpacing: 0,
         color: praxisInk,
       ),
       titleLarge: TextStyle(
-        fontSize: 19,
+        fontSize: 20,
         height: 1.25,
         fontWeight: FontWeight.w800,
         letterSpacing: 0,
@@ -88,7 +92,7 @@ ThemeData buildPraxisTheme() {
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
       fillColor: praxisSurface,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: const BorderSide(color: praxisLine),
@@ -115,7 +119,7 @@ ThemeData buildPraxisTheme() {
       style: FilledButton.styleFrom(
         backgroundColor: praxisPurple,
         foregroundColor: Colors.white,
-        minimumSize: const Size(44, 46),
+        minimumSize: const Size(44, 48),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         textStyle: const TextStyle(
           fontWeight: FontWeight.w800,
@@ -127,7 +131,7 @@ ThemeData buildPraxisTheme() {
       style: OutlinedButton.styleFrom(
         foregroundColor: praxisPurple,
         side: const BorderSide(color: praxisLine),
-        minimumSize: const Size(44, 44),
+        minimumSize: const Size(44, 46),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         textStyle: const TextStyle(
           fontWeight: FontWeight.w700,
