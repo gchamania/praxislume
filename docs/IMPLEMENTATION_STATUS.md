@@ -231,6 +231,17 @@ Still enforced:
 
 Current local-staging visual asset pipeline verification on `codex/pl-local-staging-fal-renderer`:
 
+- 2026-06-25 live local staging smoke with DeepSeek and OpenAI image:
+  - API started locally with all text routes on `openai_compatible`, `OPENAI_COMPATIBLE_BASE_URL=https://api.deepseek.com`, `OPENAI_COMPATIBLE_CAMPAIGN_MODEL=deepseek-v4-flash`, `OPENAI_COMPATIBLE_COPY_MODEL=deepseek-v4-flash`, `OPENAI_COMPATIBLE_THINKING=disabled`, `GENERATION_TIMEOUT_MS=120000`, `IMAGE_GENERATION_ENABLED=true`, `IMAGE_PROVIDER=openai_image`, `OPENAI_IMAGE_MODEL=gpt-image-1-mini`, `IMAGE_GENERATION_DAILY_LIMIT=1`, and `FAL_KEY` overridden empty.
+  - `/ready` returned `ok: true`, `status=ready`, and `provider=openai_compatible`.
+  - RLS check before smoke exited 0.
+  - The first visual request was blocked before provider call with `patient_data_rejected` because the fallback local clinic name included a timestamp-like digit sequence. The local smoke clinic/display name was changed to the digit-free `SmileCraft Dental Clinic Live`; the retry then used the single OpenAI image allowance.
+  - Live smoke user: `dentist.live.1782368509208@example.test`; clinic: `SmileCraft Dental Clinic Live`; clinic id: `7b46da90-868f-4443-ad3d-d52ed8dacee6`.
+  - DeepSeek `deepseek-v4-flash` generated a 30-item Dental campaign through `POST /v1/generations/campaign-plan`, and `ai_generation_logs` recorded `generation_type=campaign_plan`, `provider=openai_compatible`, `model=deepseek-v4-flash`, `status=succeeded`.
+  - OpenAI `gpt-image-1-mini` generated one background through `POST /v1/generations/visual-asset`; PraxisLume rendered and stored the final deterministic SVG at `7b46da90-868f-4443-ad3d-d52ed8dacee6/assets/branded_post_asset-1782368641804-4BUxV_04.svg`.
+  - Visual evidence rows: content item `baf8b2f3-6de9-49eb-b1c3-182405dfb113`, asset `110e3d90-2bc5-4756-88f0-3ac15b48f190`, `generated_assets.asset_type=branded_post_asset`.
+  - Usage evidence: `campaign_plan` usage `1/50`; `visual_asset` usage `1/1`. Logs showed one succeeded `openai_image` visual generation and one blocked pre-provider visual attempt.
+  - Flutter web local smoke signed in as Dr Riya Shah, showed `SmileCraft Dental Clinic Live`, `Dental`, and 30 content ideas, opened the content detail deep link, rendered the SVG preview, refreshed the deep link, and rendered the latest generated asset again with no browser console errors.
 - 2026-06-25 OpenAI one-image smoke implementation:
   - Red check: `npm.cmd run test:api -- --run tests/app.test.ts` failed with 3 OpenAI image provider tests because `IMAGE_PROVIDER=openai_image` was not accepted by config validation.
   - Green check: `npm.cmd run test:api -- --run tests/app.test.ts` exited 0 with 29 API tests passing after adding `openai_image` config, server-only OpenAI image envs, key validation outside the text-provider early return path, a one-image `/images/generations` provider branch, base64 image decoding, and image quota coverage.
