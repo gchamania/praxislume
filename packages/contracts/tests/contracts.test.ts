@@ -12,6 +12,7 @@ import {
   safeVisualStyleSchema,
   visualAssetGenerationRequestSchema,
   visualAssetGenerationResponseSchema,
+  visualAssetPngExportResponseSchema,
   visualBriefRequestSchema,
   visualBriefResponseSchema
 } from '../src/index.js';
@@ -151,5 +152,19 @@ describe('shared contracts', () => {
       expiresInSeconds: 300
     });
     expect(assetResponse.mimeType).toBe('image/svg+xml');
+
+    const pngExportResponse = visualAssetPngExportResponseSchema.parse({
+      assetId: '0bf52d99-c15d-47b4-b5e5-d6dcf2d4067b',
+      sourceAssetId: assetResponse.assetId,
+      storagePath:
+        '8a66fd06-dadc-4bdb-966a-2c701f74a287/assets/branded_post_png.png',
+      mimeType: 'image/png',
+      width: 1080,
+      height: 1080,
+      signedUrl: 'https://storage.example.test/signed/asset.png',
+      expiresInSeconds: 300
+    });
+    expect(pngExportResponse.sourceAssetId).toBe(assetResponse.assetId);
+    expect(pngExportResponse.mimeType).toBe('image/png');
   });
 });

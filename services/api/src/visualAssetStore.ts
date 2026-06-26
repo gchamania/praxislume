@@ -15,7 +15,29 @@ export type StoredVisualAsset = StoredBinaryAsset & {
   height: number;
 };
 
+export type StoredPngAsset = StoredBinaryAsset & {
+  sourceAssetId: string;
+  mimeType: 'image/png';
+  width: number;
+  height: number;
+};
+
+export type ExportableVisualAsset = {
+  assetId: string;
+  clinicId: string;
+  contentItemId?: string;
+  storagePath: string;
+  mimeType: 'image/svg+xml';
+  width: number;
+  height: number;
+};
+
 export type LogoAsset = {
+  bytes: Uint8Array;
+  mimeType: string;
+};
+
+export type StoredGeneratedAsset = {
   bytes: Uint8Array;
   mimeType: string;
 };
@@ -34,6 +56,18 @@ export type SaveVisualAssetInput = {
 export interface VisualAssetStore {
   downloadLogo(clinicId: string, logoPath?: string): Promise<LogoAsset | undefined>;
   saveAsset(input: SaveVisualAssetInput): Promise<StoredBinaryAsset>;
+  brandedAssetForExport(input: {
+    assetId: string;
+    userId: string;
+  }): Promise<ExportableVisualAsset | undefined>;
+  downloadGeneratedAsset(storagePath: string): Promise<StoredGeneratedAsset | undefined>;
+  savePngExport(input: {
+    sourceAsset: ExportableVisualAsset;
+    bytes: Uint8Array;
+    width: number;
+    height: number;
+    metadata: Record<string, unknown>;
+  }): Promise<StoredPngAsset>;
   latestBrandedAsset(input: {
     clinicId: string;
     contentItemId: string;
@@ -43,6 +77,8 @@ export interface VisualAssetStore {
 
 export class InMemoryVisualAssetStore implements VisualAssetStore {
   private readonly savedAssets: StoredVisualAsset[] = [];
+  private readonly savedAssetBytes = new Map<string, Uint8Array>();
+  private readonly savedPngExports: StoredPngAsset[] = [];
 
   async downloadLogo() {
     return undefined;
@@ -59,6 +95,54 @@ export class InMemoryVisualAssetStore implements VisualAssetStore {
       height: input.height
     };
     this.savedAssets.unshift(asset);
+    this.savedAssetBytes.set(asset.storagePath, input.bytes);
+    return asset;
+  }
+
+  async brandedAssetForExport(input: {
+    assetId: string;
+    userId: string;
+  }): Promise<ExportableVisualAsset | undefined> {
+    if (input.userId !== 'test-user-1') {
+      return undefined;
+    }
+    const asset = this.savedAssets.find((candidate) => candidate.assetId === input.assetId);
+    if (!asset) {
+      return undefined;
+    }
+    return {
+      assetId: asset.assetId,
+      clinicId: asset.storagePath.split('/')[0] ?? '',
+      storagePath: asset.storagePath,
+      mimeType: asset.mimeType,
+      width: asset.width,
+      height: asset.height
+    };
+  }
+
+  async downloadGeneratedAsset(storagePath: string): Promise<StoredGeneratedAsset | undefined> {
+    const bytes = this.savedAssetBytes.get(storagePath);
+    return bytes ? { bytes, mimeType: mimeTypeFromPath(storagePath) } : undefined;
+  }
+
+  async savePngExport(input: {
+    sourceAsset: ExportableVisualAsset;
+    bytes: Uint8Array;
+    width: number;
+    height: number;
+    metadata: Record<string, unknown>;
+  }): Promise<StoredPngAsset> {
+    const asset: StoredPngAsset = {
+      assetId: '88888888-8888-4888-8888-888888888888',
+      sourceAssetId: input.sourceAsset.assetId,
+      storagePath: `${input.sourceAsset.clinicId}/assets/final.png`,
+      signedUrl: 'https://storage.example.test/signed/final.png',
+      expiresInSeconds: 300,
+      mimeType: 'image/png',
+      width: input.width,
+      height: input.height
+    };
+    this.savedPngExports.unshift(asset);
     return asset;
   }
 
@@ -141,6 +225,112 @@ export class SupabaseVisualAssetStore implements VisualAssetStore {
       storagePath,
       signedUrl: signed.signedUrl,
       expiresInSeconds
+    };
+  }
+
+  async brandedAssetForExport(input: {
+    assetId: string;
+    userId: string;
+  }): Promise<ExportableVisualAsset | undefined> {
+    const { data: row, error } = await this.client
+      .from('generated_assets')
+      .select('id, clinic_id, content_item_id, storage_path, metadata, clinics!inner(owner_user_id)')
+      .eq('id', input.assetId)
+      .eq('asset_type', 'branded_post_asset')
+      .eq('clinics.owner_user_id', input.userId)
+      .maybeSingle();
+    if (error) {
+      throw error;
+    }
+    if (!row) {
+      return undefined;
+    }
+
+    const metadata = (row as { metadata?: Record<string, unknown> }).metadata ?? {};
+    const storagePath = String((row as { storage_path?: string }).storage_path ?? '');
+    if (!storagePath) {
+      return undefined;
+    }
+
+    return {
+      assetId: String((row as { id: string }).id),
+      clinicId: String((row as { clinic_id: string }).clinic_id),
+      contentItemId: (row as { content_item_id?: string | null }).content_item_id ?? undefined,
+      storagePath,
+      mimeType: 'image/svg+xml',
+      width: Number(metadata.width ?? 1080),
+      height: Number(metadata.height ?? 1080)
+    };
+  }
+
+  async downloadGeneratedAsset(storagePath: string): Promise<StoredGeneratedAsset | undefined> {
+    const { data, error } = await this.client.storage.from('generated-assets').download(storagePath);
+    if (error || !data) {
+      return undefined;
+    }
+    return {
+      bytes: new Uint8Array(await data.arrayBuffer()),
+      mimeType: data.type || mimeTypeFromPath(storagePath)
+    };
+  }
+
+  async savePngExport(input: {
+    sourceAsset: ExportableVisualAsset;
+    bytes: Uint8Array;
+    width: number;
+    height: number;
+    metadata: Record<string, unknown>;
+  }): Promise<StoredPngAsset> {
+    const storagePath = `${input.sourceAsset.clinicId}/assets/branded_post_png-${Date.now()}-${nanoid(8)}.png`;
+    const expiresInSeconds = 300;
+
+    const { error: uploadError } = await this.client.storage.from('generated-assets').upload(storagePath, input.bytes, {
+      contentType: 'image/png',
+      upsert: false
+    });
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const { data: row, error: rowError } = await this.client
+      .from('generated_assets')
+      .insert({
+        clinic_id: input.sourceAsset.clinicId,
+        content_item_id: input.sourceAsset.contentItemId,
+        asset_type: 'branded_post_png',
+        storage_path: storagePath,
+        template_version: 'branded_post_png:v1',
+        brand_kit_version: 1,
+        metadata: {
+          ...input.metadata,
+          sourceAssetId: input.sourceAsset.assetId,
+          mimeType: 'image/png',
+          width: input.width,
+          height: input.height
+        }
+      })
+      .select('id')
+      .single();
+    if (rowError) {
+      throw rowError;
+    }
+
+    const { data: signed, error: signedError } = await this.client.storage
+      .from('generated-assets')
+      .createSignedUrl(storagePath, expiresInSeconds);
+    if (signedError || !signed?.signedUrl) {
+      throw signedError ?? new Error('Unable to create signed generated asset URL');
+    }
+
+    return {
+      assetId: String((row as { id: string }).id),
+      sourceAssetId: input.sourceAsset.assetId,
+      storagePath,
+      signedUrl: signed.signedUrl,
+      expiresInSeconds,
+      mimeType: 'image/png',
+      width: input.width,
+      height: input.height
     };
   }
 

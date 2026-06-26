@@ -43,6 +43,7 @@ Error:
 - `POST /v1/generations/reel-script`: drafts a hook and short reel script.
 - `POST /v1/generations/tone-rewrite`: rewrites content in a selected clinic tone.
 - `POST /v1/generations/visual-asset`: pilot route for a safe generated background plus deterministic PraxisLume SVG brand overlay.
+- `POST /v1/generations/visual-asset/:assetId/png-export`: converts an owned deterministic branded SVG asset into a private PNG derivative.
 - `POST /v1/compliance/review`: runs rules-first compliance review.
 
 Generation endpoints reserve usage before provider execution and record every
@@ -85,6 +86,12 @@ claims. PraxisLume then renders clinic logo, clinic name, doctor name, title,
 CTA, colors, and disclaimer into a deterministic SVG asset and stores it in the
 private `generated-assets` bucket. The OpenAI image provider is intended for a
 one-image local smoke using `gpt-image-1-mini` by default.
+
+PNG export is a deterministic derivative of an already stored branded SVG asset.
+It does not call an AI provider, reserve image quota, or create an
+`ai_generation_logs` row. The backend verifies clinic ownership, rasterizes the
+canonical SVG to `image/png`, stores a `branded_post_png` object in the private
+`generated-assets` bucket, and returns a short-lived signed URL.
 
 Compliance review records metadata to `content_compliance_reviews`, including
 status, issue codes, and risk notes. The raw reviewed content is not persisted

@@ -46,4 +46,8 @@ abstract class PraxisGenerationClient {
     required String clinicId,
     required String contentItemId,
   });
+
+  Future<GeneratedVisualAsset> exportVisualAssetPng({
+    required GeneratedVisualAsset asset,
+  });
 }

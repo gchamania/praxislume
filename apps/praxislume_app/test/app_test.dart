@@ -215,6 +215,7 @@ void main() {
         find.byKey(const Key('generateVisualAssetButton')),
       );
       await tester.pumpAndSettle();
+      expect(find.byKey(const Key('exportVisualAssetPngButton')), findsNothing);
       await tester.tap(find.byKey(const Key('generateVisualAssetButton')));
       await tester.pumpAndSettle();
 
@@ -225,6 +226,16 @@ void main() {
       );
       expect(readyButton.onPressed, isNull);
       expect(find.text('Branded asset generated'), findsOneWidget);
+      await tester.ensureVisible(
+        find.byKey(const Key('exportVisualAssetPngButton')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('exportVisualAssetPngButton')));
+      await tester.pumpAndSettle();
+
+      expect(generationClient.pngExportCalls, 1);
+      expect(generationClient.pngExportSourceAssetId, 'asset-1');
+      expect(find.text('PNG export ready'), findsOneWidget);
     },
   );
 
@@ -371,6 +382,8 @@ Future<void> _openMobileDrawer(WidgetTester tester) async {
 
 class RecordingVisualGenerationClient implements PraxisGenerationClient {
   int visualAssetCalls = 0;
+  int pngExportCalls = 0;
+  String? pngExportSourceAssetId;
 
   @override
   Future<GeneratedVisualAsset> generateVisualAsset({
@@ -395,6 +408,23 @@ class RecordingVisualGenerationClient implements PraxisGenerationClient {
     required String contentItemId,
   }) async {
     return null;
+  }
+
+  @override
+  Future<GeneratedVisualAsset> exportVisualAssetPng({
+    required GeneratedVisualAsset asset,
+  }) async {
+    pngExportCalls += 1;
+    pngExportSourceAssetId = asset.assetId;
+    return const GeneratedVisualAsset(
+      assetId: 'png-asset-1',
+      storagePath: 'clinic-1/assets/final.png',
+      mimeType: 'image/png',
+      width: 1080,
+      height: 1080,
+      signedUrl: 'https://storage.example.test/signed/final.png',
+      expiresInSeconds: 300,
+    );
   }
 
   @override

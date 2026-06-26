@@ -33,10 +33,11 @@ Logo storage uses the `clinic-logos` bucket. Object names must begin with the cl
 
 Generated visual assets use the private `generated-assets` bucket. Object names
 must begin with the clinic UUID, for example
-`<clinic_id>/assets/branded_post_asset-...svg`. Authenticated users can read
-only generated asset objects whose first storage folder matches a clinic they
-own. Backend writes use the service role and also insert a `generated_assets`
-row under the same `clinic_id`.
+`<clinic_id>/assets/branded_post_asset-...svg` for the canonical deterministic
+SVG and `<clinic_id>/assets/branded_post_png-...png` for exported PNG
+derivatives. Authenticated users can read only generated asset objects whose
+first storage folder matches a clinic they own. Backend writes use the service
+role and also insert a `generated_assets` row under the same `clinic_id`.
 
 ## Migration Rules
 

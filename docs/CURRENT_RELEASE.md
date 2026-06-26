@@ -51,8 +51,8 @@ Excluded:
 
 Note: the local staging visual asset pipeline is a disabled-by-default pilot
 for validating safe generated backgrounds plus deterministic branded SVG
-rendering. It is not subscription-core MVP scope and does not add a freeform
-design editor.
+rendering. PNG export is a deterministic derivative of that stored SVG. This
+is not subscription-core MVP scope and does not add a freeform design editor.
 
 ## Light v0.2
 

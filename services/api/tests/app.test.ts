@@ -991,6 +991,72 @@ describe('PraxisLume API', () => {
     expect(response.json().data).toBeNull();
   });
 
+  it('exports an owned generated SVG visual asset as a private PNG without AI generation logging', async () => {
+    const generationStore = new RecordingGenerationStore();
+    const visualAssetStore = new RecordingVisualAssetStore();
+    const app = buildApp({
+      env: { ...env, IMAGE_GENERATION_ENABLED: 'true', IMAGE_PROVIDER: 'fake' },
+      allowTestTokens: true,
+      generationStore,
+      visualAssetStore
+    });
+
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: '/v1/generations/visual-asset',
+      headers: { authorization: 'Bearer test-user-1' },
+      payload: visualAssetPayload()
+    });
+    expect(createResponse.statusCode).toBe(200);
+
+    const exportResponse = await app.inject({
+      method: 'POST',
+      url:
+        '/v1/generations/visual-asset/77777777-7777-4777-8777-777777777777/png-export',
+      headers: { authorization: 'Bearer test-user-1' }
+    });
+
+    expect(exportResponse.statusCode).toBe(200);
+    expect(exportResponse.json().data).toMatchObject({
+      assetId: '88888888-8888-4888-8888-888888888888',
+      sourceAssetId: '77777777-7777-4777-8777-777777777777',
+      storagePath:
+        '8a66fd06-dadc-4bdb-966a-2c701f74a287/assets/final.png',
+      mimeType: 'image/png',
+      width: 1080,
+      height: 1080,
+      signedUrl: 'https://storage.example.test/signed/final.png',
+      expiresInSeconds: 300
+    });
+    const pngBytes = visualAssetStore.pngExports[0].bytes as Uint8Array;
+    expect(Array.from(pngBytes.slice(0, 8))).toEqual([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a
+    ]);
+    expect(generationStore.reserveCalls).toBe(1);
+    expect(generationStore.entries).toHaveLength(1);
+  });
+
+  it('forbids PNG export when the source visual asset is missing or not owned', async () => {
+    const app = buildApp({
+      env: { ...env, IMAGE_GENERATION_ENABLED: 'true', IMAGE_PROVIDER: 'fake' },
+      allowTestTokens: true,
+      visualAssetStore: new RecordingVisualAssetStore()
+    });
+
+    const response = await app.inject({
+      method: 'POST',
+      url:
+        '/v1/generations/visual-asset/99999999-9999-4999-9999-999999999999/png-export',
+      headers: { authorization: 'Bearer test-user-1' }
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toMatchObject({
+      ok: false,
+      error: { code: 'forbidden' }
+    });
+  });
+
   it('rejects patient-identifiable visual asset input before provider calls', async () => {
     const generationStore = new RecordingGenerationStore();
     const visualAssetStore = new RecordingVisualAssetStore();
@@ -1341,6 +1407,7 @@ class RecordingComplianceReviewStore {
 class RecordingVisualAssetStore {
   readonly assets: Array<Record<string, unknown>> = [];
   readonly savedAssets: Array<Record<string, unknown>> = [];
+  readonly pngExports: Array<Record<string, unknown>> = [];
 
   async downloadLogo() {
     return {
@@ -1364,6 +1431,40 @@ class RecordingVisualAssetStore {
     };
     this.savedAssets.unshift(saved);
     return saved;
+  }
+
+  async brandedAssetForExport(input: Record<string, unknown>) {
+    return (
+      this.savedAssets.find(
+        (asset) =>
+          asset.assetId === input.assetId &&
+          input.userId === 'test-user-1'
+      ) ?? undefined
+    );
+  }
+
+  async downloadGeneratedAsset(storagePath: string) {
+    if (storagePath.endsWith('.svg')) {
+      return {
+        bytes: this.assets[0].bytes,
+        mimeType: 'image/svg+xml'
+      };
+    }
+    return undefined;
+  }
+
+  async savePngExport(input: Record<string, unknown>) {
+    this.pngExports.push(input);
+    return {
+      assetId: '88888888-8888-4888-8888-888888888888',
+      sourceAssetId: (input.sourceAsset as { assetId: string }).assetId,
+      storagePath: '8a66fd06-dadc-4bdb-966a-2c701f74a287/assets/final.png',
+      signedUrl: 'https://storage.example.test/signed/final.png',
+      expiresInSeconds: 300,
+      mimeType: 'image/png',
+      width: input.width,
+      height: input.height
+    };
   }
 
   async latestBrandedAsset(input: Record<string, unknown>) {

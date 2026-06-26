@@ -201,6 +201,18 @@ class PraxisApiGenerationClient implements PraxisGenerationClient {
     return _readGeneratedVisualAsset(data);
   }
 
+  @override
+  Future<GeneratedVisualAsset> exportVisualAssetPng({
+    required GeneratedVisualAsset asset,
+  }) async {
+    final assetId = Uri.encodeComponent(asset.assetId);
+    final data = await _postJson(
+      '/v1/generations/visual-asset/$assetId/png-export',
+      const <String, dynamic>{},
+    );
+    return _readGeneratedVisualAsset(data);
+  }
+
   GeneratedVisualAsset _readGeneratedVisualAsset(Map<String, dynamic> data) {
     return GeneratedVisualAsset(
       assetId: readText(data, 'assetId'),

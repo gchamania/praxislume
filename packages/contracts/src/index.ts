@@ -212,6 +212,17 @@ export const visualAssetGenerationResponseSchema = z.object({
   expiresInSeconds: z.number().int().positive()
 });
 
+export const visualAssetPngExportResponseSchema = z.object({
+  assetId: uuidSchema,
+  sourceAssetId: uuidSchema,
+  storagePath: z.string().trim().min(3).max(320),
+  mimeType: z.literal('image/png'),
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+  signedUrl: z.string().url(),
+  expiresInSeconds: z.number().int().positive()
+});
+
 const patientDataPatterns: Array<{ code: string; pattern: RegExp }> = [
   { code: 'phone_number', pattern: /(?:\+?\d[\s-]?){10,}/i },
   { code: 'medical_record_number', pattern: /\b(?:mrn|medical record|patient id|uhid)\b/i },
@@ -270,3 +281,4 @@ export type VisualBriefRequest = z.infer<typeof visualBriefRequestSchema>;
 export type VisualBriefResponse = z.infer<typeof visualBriefResponseSchema>;
 export type VisualAssetGenerationRequest = z.infer<typeof visualAssetGenerationRequestSchema>;
 export type VisualAssetGenerationResponse = z.infer<typeof visualAssetGenerationResponseSchema>;
+export type VisualAssetPngExportResponse = z.infer<typeof visualAssetPngExportResponseSchema>;

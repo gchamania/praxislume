@@ -6,6 +6,7 @@ import '../../../domain/entities/praxis_models.dart';
 import '../../../ui/praxis_components.dart';
 import '../../state/praxis_providers.dart';
 import '../../shared/content_helpers.dart';
+import '../../shared/generated_asset_downloader.dart';
 import '../../shared/generated_visual_asset_preview.dart';
 
 class ContentDetailScreen extends ConsumerStatefulWidget {
@@ -23,9 +24,13 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
   String? _captionItemId;
   bool _postPackageCopied = false;
   bool _visualAssetLoading = false;
+  bool _pngExportLoading = false;
   bool _stateLoadRequested = false;
   GeneratedVisualAsset? _visualAsset;
+  GeneratedVisualAsset? _pngExportAsset;
   String? _visualAssetError;
+  String? _pngExportMessage;
+  String? _pngExportError;
   String? _latestVisualAssetRequestKey;
 
   @override
@@ -219,35 +224,80 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  key: const Key('generateVisualAssetButton'),
-                  onPressed:
-                      generationClient == null ||
-                          _visualAssetLoading ||
-                          _visualAsset != null
-                      ? null
-                      : () => _generateVisualAsset(item),
-                  icon: _visualAssetLoading
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : _visualAsset != null
-                      ? const Icon(Icons.check_circle_outline)
-                      : const Icon(Icons.auto_awesome_outlined),
-                  label: Text(
-                    _visualAssetLoading
-                        ? 'Generating asset'
-                        : _visualAsset != null
-                        ? 'Asset ready'
-                        : 'Generate branded asset',
-                  ),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    OutlinedButton.icon(
+                      key: const Key('generateVisualAssetButton'),
+                      onPressed:
+                          generationClient == null ||
+                              _visualAssetLoading ||
+                              _visualAsset != null
+                          ? null
+                          : () => _generateVisualAsset(item),
+                      icon: _visualAssetLoading
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : _visualAsset != null
+                          ? const Icon(Icons.check_circle_outline)
+                          : const Icon(Icons.auto_awesome_outlined),
+                      label: Text(
+                        _visualAssetLoading
+                            ? 'Generating asset'
+                            : _visualAsset != null
+                            ? 'Asset ready'
+                            : 'Generate branded asset',
+                      ),
+                    ),
+                    if (_visualAsset != null)
+                      OutlinedButton.icon(
+                        key: const Key('exportVisualAssetPngButton'),
+                        onPressed: generationClient == null || _pngExportLoading
+                            ? null
+                            : () => _exportPngAsset(item),
+                        icon: _pngExportLoading
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.download_outlined),
+                        label: Text(
+                          _pngExportLoading
+                              ? 'Exporting PNG'
+                              : _pngExportAsset != null
+                              ? 'PNG export ready'
+                              : 'Export PNG',
+                        ),
+                      ),
+                  ],
                 ),
                 if (_visualAssetError != null) ...[
                   const SizedBox(height: 10),
                   Text(
                     _visualAssetError!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
+                ],
+                if (_pngExportMessage != null) ...[
+                  const SizedBox(height: 10),
+                  PraxisChip(
+                    label: _pngExportMessage!,
+                    icon: Icons.download_done_outlined,
+                  ),
+                ],
+                if (_pngExportError != null) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    _pngExportError!,
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.error,
                     ),
@@ -295,6 +345,9 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
       }
       setState(() {
         _visualAsset = asset;
+        _pngExportAsset = null;
+        _pngExportMessage = null;
+        _pngExportError = null;
       });
       ScaffoldMessenger.of(
         context,
@@ -310,6 +363,59 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
       if (mounted) {
         setState(() {
           _visualAssetLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _exportPngAsset(ContentItem item) async {
+    final generationClient = ref.read(praxisGenerationClientProvider);
+    final sourceAsset = _visualAsset;
+    if (generationClient == null || sourceAsset == null) {
+      return;
+    }
+
+    setState(() {
+      _pngExportLoading = true;
+      _pngExportError = null;
+      _pngExportMessage = null;
+    });
+
+    try {
+      final pngAsset = await generationClient.exportVisualAssetPng(
+        asset: sourceAsset,
+      );
+      final downloadResult = await const GeneratedAssetDownloader().download(
+        pngAsset,
+        filename: _pngFilename(item),
+      );
+      if (!mounted) {
+        return;
+      }
+
+      final message = downloadResult.unsupported
+          ? 'PNG export ready. Download is available in web builds.'
+          : downloadResult.openedInBrowser
+          ? 'PNG export opened in browser.'
+          : 'PNG export ready.';
+      setState(() {
+        _pngExportAsset = pngAsset;
+        _pngExportMessage = message;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('PNG export ready')));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _pngExportError = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _pngExportLoading = false;
         });
       }
     }
@@ -338,11 +444,23 @@ class _ContentDetailScreenState extends ConsumerState<ContentDetailScreen> {
       }
       setState(() {
         _visualAsset = asset;
+        _pngExportAsset = null;
+        _pngExportMessage = null;
+        _pngExportError = null;
       });
     } catch (_) {
       // The asset is optional; generation remains the primary action.
     }
   }
+}
+
+String _pngFilename(ContentItem item) {
+  final slug = item.title
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+      .replaceAll(RegExp(r'^-+|-+$'), '');
+  final baseName = slug.isEmpty ? 'praxislume-asset' : slug;
+  return '$baseName.png';
 }
 
 ContentItem? _findContentItem(List<ContentItem> items, String itemId) {

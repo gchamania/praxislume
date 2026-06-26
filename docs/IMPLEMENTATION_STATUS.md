@@ -10,9 +10,9 @@ PraxisLume is an initialized Git repository with a runnable foundation for v0.1 
 - Git remote: `origin` points to `https://github.com/gchamania/praxislume.git`.
 - Current implementation branch: `codex/pl-local-staging-fal-renderer`.
 - Docs: canonical docs are populated and duplicate `docs/PraxisLume_*.md` files have been removed.
-- Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, clean architecture folders, Day 2 mockup-inspired visual foundations, redesigned MVP workspace routes, a content-detail branded visual asset pilot action, widget tests, controller tests, and an architecture boundary test.
-- Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake and OpenAI-compatible provider routing, disabled-by-default fake/fal.ai visual asset routing, Supabase-backed generation/quota/compliance/asset stores, and tests.
-- Contracts: `packages/contracts` has shared Zod schemas for text generation, compliance, and visual asset generation.
+- Flutter app: `apps/praxislume_app` has a Riverpod plus `go_router` MVP shell, web runner, Supabase email/password auth controls, a session-aware persistence repository, clean architecture folders, Day 2 mockup-inspired visual foundations, redesigned MVP workspace routes, a content-detail branded visual asset pilot action with PNG export, widget tests, controller tests, and an architecture boundary test.
+- Backend API: `services/api` has a Fastify TypeScript API with health, readiness, Supabase JWT verification for protected routes, compliance review, config validation, request envelopes, fake and OpenAI-compatible provider routing, disabled-by-default fake/fal.ai/OpenAI-image visual asset routing, deterministic PNG export, Supabase-backed generation/quota/compliance/asset stores, and tests.
+- Contracts: `packages/contracts` has shared Zod schemas for text generation, compliance, visual asset generation, and visual asset PNG export.
 - Supabase: `supabase` has local config, migrations, seed data, logo/generated-asset storage policies, and an executable RLS verification script.
 - Supabase CLI: pinned as a root npm dev dependency; use `npx.cmd supabase ...` or the root npm scripts on Windows.
 - CI/scripts: GitHub Actions workflow and local PowerShell verification scripts exist.
@@ -202,15 +202,16 @@ Still enforced:
 - Updated API, AI routing, setup, database, current release, and decision docs to document the background-only, disabled-by-default fal.ai pilot.
 
 - Added a fake-provider staging deployment runbook and environment checklist for the first visual-branch staging deploy. This keeps `IMAGE_PROVIDER=fake`, leaves OpenAI/fal.ai image keys unset, and documents health checks, rollback, and production gates.
+- Added deterministic PNG export for owned branded SVG visual assets through `POST /v1/generations/visual-asset/:assetId/png-export`, `branded_post_png` generated asset rows, private storage, RLS coverage, and a Flutter Content Detail `Export PNG` action. This export does not call AI providers, reserve generation quota, or write `ai_generation_logs`.
 
 ## In Progress
 
-- Current sprint focus: fake-provider staging baseline for `codex/pl-local-staging-fal-renderer`. Remote staging deployment is pending a selected and linked hosting target.
+- Current sprint focus: Sprint 5 PNG export verification for `codex/pl-local-staging-fal-renderer`. Remote staging deployment is pending a selected and linked hosting target.
 - Full screenshot comparison remains manual because the in-app browser screenshot API previously timed out against Flutter CanvasKit.
 
 ## Blocked
 
-- No active Supabase migration/RLS blocker is known from the visual asset SQL itself, but current local RLS verification requires Docker Desktop. On the 2026-06-25 handover check, Docker Desktop's Linux engine pipe was unavailable, so `npm.cmd run supabase:test:rls` could not connect to the local Supabase DB container.
+- No active Supabase migration/RLS blocker is known from the visual asset SQL itself, but current local RLS verification requires Docker Desktop. On the 2026-06-26 Sprint 5 check, Docker Desktop's Linux engine pipe was unavailable, so `npm.cmd run supabase:test:rls` and `npx.cmd supabase start` could not connect to the local Supabase DB container.
 - Live fal.ai smoke is externally blocked if the fal.ai account shows an admin lock. Keep `IMAGE_PROVIDER=fake` for reliable local demos until fal.ai support unlocks the account.
 - Local Supabase still depends on Docker Desktop. The first Windows startup or reset can take several minutes and may need a rerun after containers settle.
 - Remote staging deploy is blocked on choosing/linking a staging host for Flutter web and the Fastify API. The Vercel connector is available in this Codex session, but no Vercel team/project is currently linked to this repository.

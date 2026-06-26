@@ -101,9 +101,30 @@ values (
 )
 on conflict (id) do nothing;
 
+insert into public.generated_assets (
+  id,
+  clinic_id,
+  content_item_id,
+  asset_type,
+  storage_path,
+  template_version,
+  metadata
+)
+values (
+  'ffffffff-ffff-4fff-8fff-ffffffffffff',
+  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+  null,
+  'branded_post_png',
+  'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/assets/final.png',
+  'branded_post_png:v1',
+  '{"sourceAssetId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee"}'::jsonb
+)
+on conflict (id) do nothing;
+
 insert into storage.objects (bucket_id, name, owner, metadata)
 values
-  ('generated-assets', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/assets/final.svg', '22222222-2222-2222-2222-222222222222', '{}'::jsonb)
+  ('generated-assets', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/assets/final.svg', '22222222-2222-2222-2222-222222222222', '{}'::jsonb),
+  ('generated-assets', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/assets/final.png', '22222222-2222-2222-2222-222222222222', '{}'::jsonb)
 on conflict (bucket_id, name) do nothing;
 
 reset role;
@@ -120,6 +141,7 @@ declare
   changed_b_logos integer;
   visible_b_generated_assets integer;
   visible_b_generated_asset_objects integer;
+  visible_b_generated_png_objects integer;
 begin
   select count(*) into visible_clinics from public.clinics;
   if visible_clinics <> 1 then
@@ -185,6 +207,15 @@ begin
 
   if visible_b_generated_asset_objects <> 0 then
     raise exception 'Owner A can see Clinic B generated asset objects';
+  end if;
+
+  select count(*) into visible_b_generated_png_objects
+  from storage.objects
+  where bucket_id = 'generated-assets'
+    and name = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb/assets/final.png';
+
+  if visible_b_generated_png_objects <> 0 then
+    raise exception 'Owner A can see Clinic B PNG export objects';
   end if;
 end $$;
 

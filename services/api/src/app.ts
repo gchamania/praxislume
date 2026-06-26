@@ -11,7 +11,8 @@ import {
   toneRewriteRequestSchema,
   visualAssetGenerationRequestSchema,
   type VisualAssetGenerationRequest,
-  type VisualAssetGenerationResponse
+  type VisualAssetGenerationResponse,
+  type VisualAssetPngExportResponse
 } from '@praxislume/contracts';
 import { authenticateRequest, createSupabaseTokenVerifier, type AuthTokenVerifier } from './auth.js';
 import { reviewCompliance } from './compliance.js';
@@ -48,10 +49,15 @@ import {
   type VisualAssetStore
 } from './visualAssetStore.js';
 import { renderBrandedPostSvg } from './visualRenderer.js';
+import { renderSvgToPng } from './visualPngRenderer.js';
 
 const latestVisualAssetQuerySchema = z.object({
   clinicId: z.string().uuid(),
   contentItemId: z.string().uuid()
+});
+
+const visualAssetParamsSchema = z.object({
+  assetId: z.string().uuid()
 });
 
 type BuildAppOptions = {
@@ -236,6 +242,57 @@ export function buildApp(options: BuildAppOptions = {}) {
         visualAssetStore,
         input: parsed.data
       });
+    }
+  );
+
+  app.post(
+    '/v1/generations/visual-asset/:assetId/png-export',
+    { preHandler: authPreHandler },
+    async (request, reply) => {
+      const parsed = visualAssetParamsSchema.safeParse(request.params);
+      if (!parsed.success) {
+        return sendError(reply, request, 400, 'validation_error', 'Request validation failed');
+      }
+
+      const sourceAsset = await visualAssetStore.brandedAssetForExport({
+        assetId: parsed.data.assetId,
+        userId: request.auth?.userId ?? ''
+      });
+      if (!sourceAsset) {
+        return sendError(reply, request, 403, 'forbidden', 'Visual asset export is not available');
+      }
+
+      const source = await visualAssetStore.downloadGeneratedAsset(sourceAsset.storagePath);
+      if (!source || source.mimeType !== 'image/svg+xml') {
+        return sendError(reply, request, 500, 'internal_error', 'Generated visual asset source is unavailable');
+      }
+
+      const png = renderSvgToPng({
+        svgBytes: source.bytes,
+        width: sourceAsset.width,
+        height: sourceAsset.height
+      });
+      const stored = await visualAssetStore.savePngExport({
+        sourceAsset,
+        bytes: png.bytes,
+        width: png.width,
+        height: png.height,
+        metadata: {
+          sourceMimeType: source.mimeType,
+          sourceStoragePath: sourceAsset.storagePath
+        }
+      });
+      const response: VisualAssetPngExportResponse = {
+        assetId: stored.assetId,
+        sourceAssetId: stored.sourceAssetId,
+        storagePath: stored.storagePath,
+        mimeType: stored.mimeType,
+        width: stored.width,
+        height: stored.height,
+        signedUrl: stored.signedUrl,
+        expiresInSeconds: stored.expiresInSeconds
+      };
+      return sendOk(reply, request, response);
     }
   );
 
